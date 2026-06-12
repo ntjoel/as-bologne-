@@ -15,37 +15,30 @@
       <div class="topbar-title">A.S. Bologne — Admin</div>
       <div class="topbar-sub">Pannello di controllo</div>
     </div>
-    <button class="topbar-back" onclick="window.location.href='index.html'">
-      <i class="ti ti-arrow-left"></i> Sito
-    </button>
+    <button class="topbar-back" onclick="window.location.href='index.html'"><i class="ti ti-arrow-left"></i> Sito</button>
   </div>
 
   <!-- LOGIN -->
   <div class="content" id="login-area">
-    <div class="card" style="max-width:380px;margin:40px auto;">
-      <div style="text-align:center;margin-bottom:20px;">
+    <div class="card login-card">
+      <div style="text-align:center;margin-bottom:24px;">
         <div class="admin-icon"><i class="ti ti-shield"></i></div>
-        <div style="font-size:16px;font-weight:500;margin-top:10px;">Espace Admin</div>
+        <div style="font-size:17px;font-weight:bold;margin-top:12px;color:#1a2a5e;">Espace Admin</div>
         <div style="font-size:13px;color:#888;margin-top:4px;">A.S. Bologne</div>
-      </div>
-      <div class="form-row">
-        <label class="form-lbl">Email</label>
-        <input type="email" id="admin-email" placeholder="admin@asbologne.com">
       </div>
       <div class="form-row">
         <label class="form-lbl">Mot de passe</label>
         <input type="password" id="admin-pw" placeholder="••••••••" onkeydown="if(event.key==='Enter')adminLogin()">
       </div>
-      <button class="btn-primary" onclick="adminLogin()">Accéder</button>
-      <div class="err-msg" id="login-err" style="margin-top:10px;">Email ou mot de passe incorrect</div>
+      <button class="btn-primary" onclick="adminLogin()" style="margin-top:6px;"><i class="ti ti-lock-open"></i> Accéder</button>
+      <div class="err-msg" id="login-err" style="margin-top:10px;"><i class="ti ti-x"></i> Mot de passe incorrect</div>
     </div>
   </div>
 
-  <!-- PANNELLO ADMIN (nascosto finché non si fa login) -->
+  <!-- PANNELLO -->
   <div class="content section-hidden" id="admin-area">
-
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-      <div style="font-size:14px;color:#888;">Connecté comme admin</div>
+      <div style="font-size:13px;color:#888;"><i class="ti ti-shield-check" style="color:#1a2a5e;"></i> Admin connecté</div>
       <button class="btn-outline" onclick="adminLogout()"><i class="ti ti-logout"></i> Déconnexion</button>
     </div>
 
@@ -55,60 +48,110 @@
       <div class="metric"><div class="metric-val" id="adm-giocatori">0</div><div class="metric-lbl">Joueurs</div></div>
     </div>
 
-    <!-- Aggiungi partita -->
-    <div class="card">
-      <div class="card-title"><i class="ti ti-calendar-plus"></i> Ajouter un match</div>
-      <div class="form-grid">
-        <div class="form-row"><label class="form-lbl">Date</label><input type="date" id="new-data"></div>
-        <div class="form-row"><label class="form-lbl">Adversaire</label><input type="text" id="new-avv" placeholder="FC Lyon"></div>
-      </div>
-      <div class="form-grid">
-        <div class="form-row">
-          <label class="form-lbl">Domicile / Extérieur</label>
-          <select id="new-ht"><option value="Casa">Domicile</option><option value="Trasferta">Extérieur</option></select>
+    <!-- TABS ADMIN -->
+    <div class="tab-sub" style="margin-bottom:16px;">
+      <button class="tab-sub-btn active" onclick="switchAdminTab('matches',this)"><i class="ti ti-calendar"></i> Matches</button>
+      <button class="tab-sub-btn" onclick="switchAdminTab('presenze',this)"><i class="ti ti-clipboard-check"></i> Présences</button>
+      <button class="tab-sub-btn" onclick="switchAdminTab('giocatori',this)"><i class="ti ti-users"></i> Joueurs</button>
+      <button class="tab-sub-btn" onclick="switchAdminTab('foto',this)"><i class="ti ti-photo"></i> Photos</button>
+    </div>
+
+    <!-- TAB MATCHES -->
+    <div id="adm-tab-matches">
+      <div class="card">
+        <div class="card-title"><i class="ti ti-calendar-plus"></i> Ajouter un match</div>
+        <div class="form-grid">
+          <div class="form-row"><label class="form-lbl">Date</label><input type="date" id="new-data"></div>
+          <div class="form-row"><label class="form-lbl">Adversaire</label><input type="text" id="new-avv" placeholder="FC Lyon"></div>
         </div>
-        <div class="form-row"><label class="form-lbl">Heure</label><input type="time" id="new-ora" value="15:30"></div>
+        <div class="form-grid">
+          <div class="form-row"><label class="form-lbl">Dom. / Ext.</label><select id="new-ht"><option value="Casa">Domicile</option><option value="Trasferta">Extérieur</option></select></div>
+          <div class="form-row"><label class="form-lbl">Heure</label><input type="time" id="new-ora" value="15:30"></div>
+        </div>
+        <div class="form-row"><label class="form-lbl">Terrain</label><input type="text" id="new-campo" placeholder="Stade Municipal"></div>
+        <button class="btn-primary" onclick="addMatch()"><i class="ti ti-plus"></i> Ajouter au calendrier</button>
+        <div class="success-msg" id="match-success"><i class="ti ti-check"></i> Match ajouté !</div>
+        <div class="err-msg" id="match-err">Date et adversaire requis</div>
       </div>
-      <div class="form-row"><label class="form-lbl">Terrain</label><input type="text" id="new-campo" placeholder="Stade Municipal"></div>
-      <button class="btn-primary" onclick="addMatch()"><i class="ti ti-plus"></i> Ajouter au calendrier</button>
-      <div class="success-msg" id="match-success"><i class="ti ti-check"></i> Match ajouté !</div>
-      <div class="err-msg" id="match-err">Date et adversaire requis</div>
-    </div>
-
-    <!-- Risultato -->
-    <div class="card">
-      <div class="card-title"><i class="ti ti-pencil"></i> Entrer un résultat</div>
-      <div class="form-grid">
-        <div class="form-row"><label class="form-lbl">Match</label><select id="res-match"></select></div>
-        <div class="form-row"><label class="form-lbl">Score (ex. 2-1)</label><input type="text" id="res-score" placeholder="2-1"></div>
+      <div class="card">
+        <div class="card-title"><i class="ti ti-pencil"></i> Entrer un résultat</div>
+        <div class="form-grid">
+          <div class="form-row"><label class="form-lbl">Match</label><select id="res-match"></select></div>
+          <div class="form-row"><label class="form-lbl">Score (ex. 2-1)</label><input type="text" id="res-score" placeholder="2-1"></div>
+        </div>
+        <button class="btn-primary" onclick="saveResult()"><i class="ti ti-device-floppy"></i> Enregistrer</button>
+        <div class="success-msg" id="res-success"><i class="ti ti-check"></i> Résultat enregistré !</div>
       </div>
-      <button class="btn-primary" onclick="saveResult()"><i class="ti ti-device-floppy"></i> Enregistrer</button>
-      <div class="success-msg" id="res-success"><i class="ti ti-check"></i> Résultat enregistré !</div>
+      <div class="card">
+        <div class="card-title"><i class="ti ti-list-details"></i> Matches enregistrés</div>
+        <div id="admin-match-list"><div class="empty-msg">Nessuna partita ancora.</div></div>
+      </div>
     </div>
 
-    <!-- Lista partite admin -->
-    <div class="card">
-      <div class="card-title"><i class="ti ti-list-details"></i> Matches enregistrés</div>
-      <div id="admin-match-list"><div class="empty-msg">Nessuna partita ancora.</div></div>
+    <!-- TAB PRESENZE -->
+    <div id="adm-tab-presenze" class="section-hidden">
+      <div class="card">
+        <div class="card-title"><i class="ti ti-clipboard-check"></i> Gestione presenze</div>
+        <div class="form-row">
+          <label class="form-lbl">Seleziona partita</label>
+          <select id="pres-match-select" onchange="loadPresenze()"><option value="">-- Seleziona --</option></select>
+        </div>
+      </div>
+      <div id="presenze-table-wrap"></div>
     </div>
 
-    <!-- Gestione giocatori -->
-    <div class="card">
-      <div class="card-title"><i class="ti ti-user-plus"></i> Ajouter un joueur</div>
-      <div class="form-grid">
+    <!-- TAB GIOCATORI -->
+    <div id="adm-tab-giocatori" class="section-hidden">
+      <div class="card">
+        <div class="card-title"><i class="ti ti-user-plus"></i> Ajouter un joueur</div>
         <div class="form-row"><label class="form-lbl">Nom complet</label><input type="text" id="new-player-nome" placeholder="Marco Rossi"></div>
-        <div class="form-row">
-          <label class="form-lbl">Poste</label>
-          <select id="new-player-pos">
-            <option value="G">Gardien (G)</option>
-            <option value="D">Défenseur (D)</option>
-            <option value="M" selected>Milieu (M)</option>
-            <option value="A">Attaquant (A)</option>
-          </select>
+        <div class="form-grid">
+          <div class="form-row">
+            <label class="form-lbl">Poste</label>
+            <select id="new-player-pos">
+              <option value="G">Gardien (G)</option>
+              <option value="D">Défenseur (D)</option>
+              <option value="M" selected>Milieu (M)</option>
+              <option value="A">Attaquant (A)</option>
+            </select>
+          </div>
+          <div class="form-row"><label class="form-lbl">Numéro</label><input type="number" id="new-player-num" placeholder="10" min="1" max="99"></div>
         </div>
+        <div class="form-row">
+          <label class="form-lbl">Photo du joueur</label>
+          <input type="file" id="new-player-photo" accept="image/*" style="padding:6px;">
+        </div>
+        <button class="btn-primary" onclick="addPlayer()"><i class="ti ti-plus"></i> Ajouter joueur</button>
+        <div class="success-msg" id="player-success"><i class="ti ti-check"></i> Joueur ajouté !</div>
+        <div class="err-msg" id="player-err">Erreur lors de l'ajout</div>
       </div>
-      <button class="btn-primary" onclick="addPlayer()"><i class="ti ti-plus"></i> Ajouter joueur</button>
-      <div class="success-msg" id="player-success"><i class="ti ti-check"></i> Joueur ajouté !</div>
+      <div class="card">
+        <div class="card-title"><i class="ti ti-users"></i> Liste des joueurs</div>
+        <div id="player-list"><div class="empty-msg">Nessun giocatore ancora.</div></div>
+      </div>
+    </div>
+
+    <!-- TAB FOTO -->
+    <div id="adm-tab-foto" class="section-hidden">
+      <div class="card">
+        <div class="card-title"><i class="ti ti-upload"></i> Ajouter des photos</div>
+        <div class="form-row">
+          <label class="form-lbl">Match associé</label>
+          <select id="foto-match-select"><option value="">-- Seleziona --</option></select>
+        </div>
+        <div class="form-row">
+          <label class="form-lbl">Photos (sélectionne une ou plusieurs)</label>
+          <input type="file" id="foto-input" accept="image/*" multiple style="padding:6px;">
+        </div>
+        <div class="form-row"><label class="form-lbl">Légende (optionnel)</label><input type="text" id="foto-caption" placeholder="But de Marco à la 78e..."></div>
+        <button class="btn-primary" onclick="uploadFoto()"><i class="ti ti-upload"></i> Envoyer les photos</button>
+        <div class="success-msg" id="foto-success"><i class="ti ti-check"></i> Photos ajoutées !</div>
+        <div class="err-msg" id="foto-err">Erreur upload</div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="ti ti-photo"></i> Photos existantes</div>
+        <div id="foto-list"><div class="empty-msg">Nessuna foto ancora.</div></div>
+      </div>
     </div>
 
   </div>

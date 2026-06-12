@@ -19,21 +19,11 @@
   </div>
 
   <div class="nav">
-    <button class="nav-btn active" onclick="switchTab('partite')" id="tab-partite">
-      <i class="ti ti-calendar"></i> Partite
-    </button>
-    <button class="nav-btn" onclick="switchTab('disponibilita')" id="tab-disponibilita">
-      <i class="ti ti-checkbox"></i> Dispo
-    </button>
-    <button class="nav-btn" onclick="switchTab('statistiche')" id="tab-statistiche">
-      <i class="ti ti-chart-bar"></i> Stats
-    </button>
-    <button class="nav-btn" onclick="switchTab('galleria')" id="tab-galleria">
-      <i class="ti ti-photo"></i> Photos
-    </button>
-    <button class="nav-btn" onclick="window.location.href='admin.html'" id="tab-admin">
-      <i class="ti ti-shield"></i> Admin
-    </button>
+    <button class="nav-btn active" onclick="switchTab('partite')" id="tab-partite"><i class="ti ti-calendar"></i> Partite</button>
+    <button class="nav-btn" onclick="switchTab('disponibilita')" id="tab-disponibilita"><i class="ti ti-checkbox"></i> Dispo</button>
+    <button class="nav-btn" onclick="switchTab('statistiche')" id="tab-statistiche"><i class="ti ti-chart-bar"></i> Stats</button>
+    <button class="nav-btn" onclick="switchTab('galleria')" id="tab-galleria"><i class="ti ti-photo"></i> Photos</button>
+    <button class="nav-btn" onclick="window.location.href='admin.html'" id="tab-admin"><i class="ti ti-shield"></i> Admin</button>
   </div>
 
   <div class="content">
@@ -41,26 +31,14 @@
     <!-- PARTITE -->
     <div id="sec-partite">
       <div class="metrics">
-        <div class="metric metric-accent">
-          <div class="metric-val" id="m-partite">0</div>
-          <div class="metric-lbl">Matches joués</div>
-        </div>
-        <div class="metric">
-          <div class="metric-val" id="m-vinte" style="color:#27500a;">0</div>
-          <div class="metric-lbl">Victoires</div>
-        </div>
-        <div class="metric">
-          <div class="metric-val" id="m-pari" style="color:#633806;">0</div>
-          <div class="metric-lbl">Nuls</div>
-        </div>
-        <div class="metric">
-          <div class="metric-val" id="m-perse" style="color:#791f1f;">0</div>
-          <div class="metric-lbl">Défaites</div>
-        </div>
+        <div class="metric metric-accent"><div class="metric-val" id="m-partite">0</div><div class="metric-lbl">Joués</div></div>
+        <div class="metric"><div class="metric-val" id="m-vinte" style="color:#27500a">0</div><div class="metric-lbl">Victoires</div></div>
+        <div class="metric"><div class="metric-val" id="m-pari" style="color:#633806">0</div><div class="metric-lbl">Nuls</div></div>
+        <div class="metric"><div class="metric-val" id="m-perse" style="color:#791f1f">0</div><div class="metric-lbl">Défaites</div></div>
       </div>
       <div class="card">
         <div class="card-title"><i class="ti ti-calendar-event"></i> Calendario stagione</div>
-        <div id="match-list"><div class="empty-msg">Nessuna partita ancora. L'admin può aggiungerne.</div></div>
+        <div id="match-list"><div class="empty-msg">Nessuna partita ancora.</div></div>
       </div>
     </div>
 
@@ -70,19 +48,11 @@
         <div class="card-title"><i class="ti ti-clipboard-list"></i> Conferma disponibilità</div>
         <div class="form-row">
           <label class="form-lbl">Seleziona partita</label>
-          <select id="match-select" onchange="loadAvail()">
-            <option value="">-- Nessuna partita disponibile --</option>
-          </select>
+          <select id="match-select" onchange="loadAvail()"><option value="">-- Caricamento... --</option></select>
         </div>
         <div class="form-grid">
-          <div class="form-row">
-            <label class="form-lbl">Prénom</label>
-            <input type="text" id="avail-nome" placeholder="Marco">
-          </div>
-          <div class="form-row">
-            <label class="form-lbl">Nom</label>
-            <input type="text" id="avail-cognome" placeholder="Rossi">
-          </div>
+          <div class="form-row"><label class="form-lbl">Prénom</label><input type="text" id="avail-nome" placeholder="Marco"></div>
+          <div class="form-row"><label class="form-lbl">Nom</label><input type="text" id="avail-cognome" placeholder="Rossi"></div>
         </div>
         <div style="display:flex;gap:8px;margin-top:10px;">
           <button class="btn-si" onclick="submitAvail(true)"><i class="ti ti-check"></i> Disponible</button>
@@ -93,29 +63,21 @@
       </div>
       <div class="card">
         <div class="card-title"><i class="ti ti-users"></i> Réponses reçues</div>
-        <div id="avail-list"><div class="empty-msg">Sélectionne un match pour voir les réponses.</div></div>
+        <div id="avail-list"><div class="empty-msg">Sélectionne un match.</div></div>
       </div>
     </div>
 
     <!-- STATISTICHE -->
     <div id="sec-statistiche" class="section-hidden">
-      <div class="tab-sub">
-        <button class="tab-sub-btn active" onclick="switchStat('presenze', this)">Présences</button>
-        <button class="tab-sub-btn" onclick="switchStat('gol', this)">Buts & Passes</button>
-        <button class="tab-sub-btn" onclick="switchStat('cartellini', this)">Cartons</button>
-      </div>
       <div class="card">
-        <div class="card-title" id="stat-title"><i class="ti ti-chart-bar"></i> Présences joueurs</div>
-        <div id="stat-content"><div class="empty-msg">Nessun dato ancora.</div></div>
+        <div class="card-title"><i class="ti ti-chart-bar"></i> Statistiques joueurs</div>
+        <div id="stat-content"><div class="empty-msg">Chargement...</div></div>
       </div>
     </div>
 
     <!-- GALLERIA -->
     <div id="sec-galleria" class="section-hidden">
-      <div class="card">
-        <div class="card-title"><i class="ti ti-photo"></i> Photos des matchs</div>
-        <div id="photo-list"><div class="empty-msg">Nessuna foto ancora. Aggiungile dopo ogni partita!</div></div>
-      </div>
+      <div id="galleria-content"><div class="empty-msg" style="padding:30px 0;">Nessuna foto ancora.</div></div>
     </div>
 
   </div>

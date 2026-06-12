@@ -1,56 +1,51 @@
-
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const SUPABASE_URL = "https://uiypmfkfwcvdujkvsjxp.supabase.co"; // <-- cambia
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpeXBtZmtmd2N2ZHVqa3ZzanhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTE2MTAsImV4cCI6MjA5NjgyNzYxMH0.iPvSXzsXPQRJdXURELrjjWOoi68MV7w9yONbt17VXew";  // <-- incolla la tua anon key
+const SUPABASE_URL = "https://uiypmfkfwcvdujkvsjxp.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpeXBtZmtmd2N2ZHVqa3ZzanhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTE2MTAsImV4cCI6MjA5NjgyNzYxMH0.iPvSXzsXPQRJdXURELrjjWOoi68MV7w9yONbt17VXew";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-
 let allMatches = [];
-let currentStatType = 'presenze';
- 
-// ---- INIT ----
+
 document.addEventListener("DOMContentLoaded", async () => {
   await loadMatches();
-  renderMatchSelect();
 });
- 
-// ---- CARICA PARTITE ----
+
+// ---- MATCHES ----
 async function loadMatches() {
-  const { data, error } = await supabase
-    .from("matches")
-    .select("*")
-    .order("data", { ascending: true });
- 
-  if (error) { console.error("Errore caricamento partite:", error); return; }
+  const { data, error } = await supabase.from("matches").select("*").order("data", { ascending: true });
+  if (error) { console.error(error); return; }
   allMatches = data || [];
   renderMatches();
+  renderMatchSelect();
 }
- 
-// ---- RENDER PARTITE ----
+
+function fmtDate(d) {
+  return new Date(d + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+function getResult(m) {
+  if (!m.risultato) return null;
+  const p = m.risultato.split('-').map(Number);
+  if (m.tipo === 'Casa') return p[0] > p[1] ? 'V' : p[0] === p[1] ? 'N' : 'D';
+  return p[1] > p[0] ? 'V' : p[0] === p[1] ? 'N' : 'D';
+}
+
 function renderMatches() {
   const el = document.getElementById("match-list");
-  if (!allMatches.length) {
-    el.innerHTML = '<div class="empty-msg">Nessuna partita ancora. L\'admin può aggiungerne.</div>';
-    return;
-  }
+  if (!allMatches.length) { el.innerHTML = '<div class="empty-msg">Nessuna partita ancora.</div>'; return; }
   let v = 0, pa = 0, s = 0, played = 0;
   el.innerHTML = allMatches.map(m => {
     const r = getResult(m);
-    if (r === 'V') { v++; played++; }
-    else if (r === 'N') { pa++; played++; }
-    else if (r === 'D') { s++; played++; }
+    if (r === 'V') { v++; played++; } else if (r === 'N') { pa++; played++; } else if (r === 'D') { s++; played++; }
     const bCls = r === 'V' ? 'badge-win' : r === 'N' ? 'badge-draw' : r === 'D' ? 'badge-loss' : 'badge-up';
     const bTxt = r === 'V' ? 'Victoire' : r === 'N' ? 'Nul' : r === 'D' ? 'Défaite' : 'À venir';
-    const dt = new Date(m.data + 'T00:00:00');
-    const dateStr = dt.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
     return `<div class="match-row" onclick="openMatch(${m.id})">
-      <div class="match-date">${dateStr}</div>
-      <div style="flex:1;">
+      <div class="match-date">${fmtDate(m.data)}</div>
+      <div style="flex:1">
         <div class="match-teams">${m.tipo === 'Casa' ? '🏠' : '✈️'} ${m.avversario}</div>
         <div class="match-detail">${m.orario || ''} · ${m.campo || ''}${m.risultato ? ' · <strong>' + m.risultato + '</strong>' : ''}</div>
       </div>
-      <div><span class="badge ${bCls}">${bTxt}</span></div>
+      <span class="badge ${bCls}">${bTxt}</span>
     </div>`;
   }).join('');
   document.getElementById('m-partite').textContent = played;
@@ -58,58 +53,37 @@ function renderMatches() {
   document.getElementById('m-pari').textContent = pa;
   document.getElementById('m-perse').textContent = s;
 }
- 
-function getResult(m) {
-  if (!m.risultato) return null;
-  const p = m.risultato.split('-').map(Number);
-  if (m.tipo === 'Casa') return p[0] > p[1] ? 'V' : p[0] === p[1] ? 'N' : 'D';
-  return p[1] > p[0] ? 'V' : p[0] === p[1] ? 'N' : 'D';
-}
- 
+
 // ---- DISPONIBILITA ----
 function renderMatchSelect() {
   const sel = document.getElementById("match-select");
   if (!sel) return;
-  if (!allMatches.length) {
-    sel.innerHTML = '<option value="">-- Nessuna partita --</option>';
-    return;
-  }
-  sel.innerHTML = allMatches.map(m => {
-    const dt = new Date(m.data + 'T00:00:00');
-    const dateStr = dt.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-    return `<option value="${m.id}">${dateStr} — ${m.avversario}</option>`;
-  }).join('');
+  if (!allMatches.length) { sel.innerHTML = '<option value="">-- Nessuna partita --</option>'; return; }
+  sel.innerHTML = allMatches.map(m =>
+    `<option value="${m.id}">${fmtDate(m.data)} — ${m.avversario}</option>`
+  ).join('');
   loadAvail();
 }
- 
+
 window.loadAvail = async function () {
   const id = document.getElementById("match-select").value;
-  if (!id) return;
-  const { data, error } = await supabase
-    .from("disponibilita")
-    .select("*")
-    .eq("match_id", id);
- 
   const el = document.getElementById("avail-list");
-  if (error || !data || !data.length) {
-    el.innerHTML = '<div class="empty-msg">Aucune réponse pour ce match.</div>';
-    return;
-  }
-  const si = data.filter(a => a.disponibile);
-  const no = data.filter(a => !a.disponibile);
+  if (!id) { el.innerHTML = '<div class="empty-msg">Sélectionne un match.</div>'; return; }
+  const { data } = await supabase.from("disponibilita").select("*").eq("match_id", id).order("nome");
+  if (!data || !data.length) { el.innerHTML = '<div class="empty-msg">Aucune réponse pour ce match.</div>'; return; }
+  const si = data.filter(a => a.disponibile), no = data.filter(a => !a.disponibile);
   el.innerHTML =
     (si.length ? `<div class="divider-label">✅ Disponibles (${si.length})</div>` + si.map(a => `<div class="avail-item"><div style="flex:1">${a.nome}</div><span class="badge badge-win">Oui</span></div>`).join('') : '') +
-    (no.length ? `<div class="divider-label" style="margin-top:10px;">❌ Pas disponibles (${no.length})</div>` + no.map(a => `<div class="avail-item"><div style="flex:1">${a.nome}</div><span class="badge badge-loss">Non</span></div>`).join('') : '');
+    (no.length ? `<div class="divider-label" style="margin-top:10px">❌ Pas disponibles (${no.length})</div>` + no.map(a => `<div class="avail-item"><div style="flex:1">${a.nome}</div><span class="badge badge-loss">Non</span></div>`).join('') : '');
 };
- 
+
 window.submitAvail = async function (ok) {
   const nome = (document.getElementById("avail-nome").value || '').trim();
   const cognome = (document.getElementById("avail-cognome").value || '').trim();
   const id = document.getElementById("match-select").value;
-  if (!nome || !cognome || !id) { showMsg('avail-err', true); return; }
-  const full = nome + ' ' + cognome;
+  if (!nome || !cognome || !id) { showMsg('avail-err'); return; }
   const { error } = await supabase.from("disponibilita").upsert(
-    { match_id: parseInt(id), nome: full, disponibile: ok },
+    { match_id: parseInt(id), nome: nome + ' ' + cognome, disponibile: ok },
     { onConflict: 'match_id,nome' }
   );
   if (error) { console.error(error); return; }
@@ -118,92 +92,141 @@ window.submitAvail = async function (ok) {
   showMsg('avail-success');
   loadAvail();
 };
- 
-// ---- STATISTICHE ----
-window.switchStat = async function (type, btn) {
-  document.querySelectorAll('.tab-sub-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  currentStatType = type;
-  await loadStats(type);
-};
- 
-async function loadStats(type) {
-  const { data: players, error } = await supabase
-    .from("giocatori")
-    .select("*, statistiche(*)")
-    .eq("attivo", true);
- 
+
+// ---- STATISTICHE con foto e presenze ----
+async function loadStats() {
   const el = document.getElementById("stat-content");
-  const titleEl = document.getElementById("stat-title");
-  if (error || !players || !players.length) {
+  el.innerHTML = '<div class="empty-msg">Chargement...</div>';
+
+  const { data: players, error: pe } = await supabase.from("giocatori").select("*").eq("attivo", true).order("nome");
+  const { data: matches, error: me } = await supabase.from("matches").select("id, avversario, data, stato").order("data");
+
+  if (pe || me || !players || !players.length) {
     el.innerHTML = '<div class="empty-msg">Nessun giocatore ancora. Aggiungili dal pannello admin.</div>';
     return;
   }
- 
-  const titles = { presenze: 'Présences joueurs', gol: 'Buts & Passes décisives', cartellini: 'Cartons' };
-  titleEl.innerHTML = `<i class="ti ti-chart-bar"></i> ${titles[type]}`;
- 
-  const computed = players.map(p => {
-    const stats = p.statistiche || [];
-    return {
-      nome: p.nome, pos: p.posizione,
-      presenze: stats.filter(s => s.presente).length,
-      gol: stats.reduce((a, s) => a + (s.gol || 0), 0),
-      assist: stats.reduce((a, s) => a + (s.assist || 0), 0),
-      gialli: stats.reduce((a, s) => a + (s.gialli || 0), 0),
-      rossi: stats.reduce((a, s) => a + (s.rossi || 0), 0),
-    };
-  });
- 
-  if (type === 'presenze') computed.sort((a, b) => b.presenze - a.presenze);
-  else if (type === 'gol') computed.sort((a, b) => (b.gol + b.assist) - (a.gol + a.assist));
-  else computed.sort((a, b) => (b.gialli + b.rossi * 2) - (a.gialli + a.rossi * 2));
- 
-  const posCol = { G: 'badge-navy', D: 'badge-navy', M: 'badge-gold', A: 'badge-red' };
-  let html = '<table class="stat-table"><thead><tr>';
- 
-  if (type === 'presenze') {
-    html += '<th style="width:28px">#</th><th>Joueur</th><th style="width:30px">P</th><th style="width:50px;text-align:center">Match</th></tr></thead><tbody>';
-    computed.forEach((p, i) => {
-      html += `<tr><td style="color:#aaa">${i + 1}</td><td><div style="display:flex;align-items:center"><div class="avatar">${p.nome.split(' ').map(x => x[0]).join('')}</div>${p.nome}</div></td><td><span class="badge ${posCol[p.pos] || 'badge-navy'}">${p.pos}</span></td><td class="stat-num">${p.presenze}</td></tr>`;
-    });
-  } else if (type === 'gol') {
-    html += '<th style="width:28px">#</th><th>Joueur</th><th style="width:30px">P</th><th style="width:42px;text-align:center">Buts</th><th style="width:42px;text-align:center">PD</th><th style="width:50px;text-align:center">Total</th></tr></thead><tbody>';
-    computed.forEach((p, i) => {
-      html += `<tr><td style="color:#aaa">${i + 1}</td><td><div style="display:flex;align-items:center"><div class="avatar">${p.nome.split(' ').map(x => x[0]).join('')}</div>${p.nome}</div></td><td><span class="badge ${posCol[p.pos] || 'badge-navy'}">${p.pos}</span></td><td class="stat-num">${p.gol}</td><td class="stat-num">${p.assist}</td><td class="stat-num">${p.gol + p.assist}</td></tr>`;
-    });
-  } else {
-    html += '<th style="width:28px">#</th><th>Joueur</th><th style="width:30px">P</th><th style="width:54px;text-align:center">Jaunes</th><th style="width:54px;text-align:center">Rouges</th></tr></thead><tbody>';
-    computed.forEach((p, i) => {
-      html += `<tr><td style="color:#aaa">${i + 1}</td><td><div style="display:flex;align-items:center"><div class="avatar">${p.nome.split(' ').map(x => x[0]).join('')}</div>${p.nome}</div></td><td><span class="badge ${posCol[p.pos] || 'badge-navy'}">${p.pos}</span></td><td class="stat-num">${p.gialli ? `<span class="badge badge-gold">${p.gialli}</span>` : '-'}</td><td class="stat-num">${p.rossi ? `<span class="badge badge-red">${p.rossi}</span>` : '-'}</td></tr>`;
-    });
+
+  const playedMatches = matches ? matches.filter(m => m.stato === 'passata') : [];
+
+  if (!playedMatches.length) {
+    el.innerHTML = '<div class="empty-msg">Nessuna partita giocata ancora.</div>';
+    return;
   }
-  html += '</tbody></table>';
+
+  // Carica tutte le presenze
+  const { data: presenze } = await supabase.from("statistiche").select("*");
+  const presMap = {};
+  (presenze || []).forEach(p => {
+    const key = `${p.giocatore_id}_${p.match_id}`;
+    presMap[key] = p;
+  });
+
+  let html = `<div style="overflow-x:auto;">
+    <table class="stat-table-full">
+      <thead>
+        <tr>
+          <th class="th-player">Joueur</th>`;
+
+  playedMatches.forEach(m => {
+    const dt = new Date(m.data + 'T00:00:00');
+    const d = dt.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+    html += `<th class="th-match" title="${m.avversario}">${d}<br><span style="font-size:10px;font-weight:normal;">${m.avversario.split(' ')[0]}</span></th>`;
+  });
+  html += `<th class="th-total">Total</th></tr></thead><tbody>`;
+
+  players.forEach(p => {
+    const photoUrl = p.foto_url
+      ? `<img src="${p.foto_url}" class="player-photo" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">`
+      : '';
+    const initials = p.nome.split(' ').map(x => x[0]).join('').toUpperCase();
+    html += `<tr>
+      <td class="td-player">
+        <div class="player-cell">
+          ${photoUrl}
+          <div class="avatar" style="${p.foto_url ? 'display:none' : ''}">${initials}</div>
+          <div class="player-info">
+            <div class="player-name">${p.nome}</div>
+            <span class="badge badge-navy" style="font-size:10px">${p.posizione}</span>
+          </div>
+        </div>
+      </td>`;
+
+    let total = 0;
+    playedMatches.forEach(m => {
+      const key = `${p.id}_${m.id}`;
+      const pres = presMap[key];
+      const presente = pres && pres.presente;
+      if (presente) total++;
+      html += `<td class="td-pres">${presente
+        ? '<span class="pres-si">✓</span>'
+        : '<span class="pres-no">✗</span>'
+      }</td>`;
+    });
+
+    html += `<td class="td-total">${total}</td></tr>`;
+  });
+
+  html += '</tbody></table></div>';
   el.innerHTML = html;
 }
- 
-// ---- UTILS ----
-function showMsg(id, isErr = false) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.style.display = 'block';
-  setTimeout(() => el.style.display = 'none', 2500);
+
+// ---- GALLERIA ----
+async function loadGalleria() {
+  const el = document.getElementById("galleria-content");
+  const { data: matches } = await supabase.from("matches").select("id, avversario, data").order("data", { ascending: false });
+  const { data: foto } = await supabase.from("foto").select("*").order("created_at", { ascending: false });
+
+  if (!foto || !foto.length) {
+    el.innerHTML = '<div class="empty-msg" style="padding:30px 0">Nessuna foto ancora.</div>';
+    return;
+  }
+
+  const matchMap = {};
+  (matches || []).forEach(m => matchMap[m.id] = m);
+
+  const byMatch = {};
+  foto.forEach(f => {
+    if (!byMatch[f.match_id]) byMatch[f.match_id] = [];
+    byMatch[f.match_id].push(f);
+  });
+
+  let html = '';
+  Object.keys(byMatch).forEach(mid => {
+    const m = matchMap[mid];
+    const label = m ? `${m.avversario} — ${fmtDate(m.data)}` : 'Match';
+    html += `<div class="card">
+      <div class="card-title"><i class="ti ti-photo"></i> ${label}</div>
+      <div class="photo-grid">`;
+    byMatch[mid].forEach(f => {
+      const url = supabase.storage.from('foto').getPublicUrl(f.url).data.publicUrl;
+      html += `<div class="photo-thumb">
+        <img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" onerror="this.parentElement.innerHTML='<i class=ti ti-photo style=font-size:24px></i>'">
+      </div>`;
+    });
+    html += `</div></div>`;
+  });
+  el.innerHTML = html;
 }
- 
-// ---- TAB SWITCHING ----
+
+// ---- TAB ----
 window.switchTab = function (name) {
   ['partite', 'disponibilita', 'statistiche', 'galleria'].forEach(t => {
     document.getElementById('sec-' + t)?.classList.toggle('section-hidden', t !== name);
     document.getElementById('tab-' + t)?.classList.toggle('active', t === name);
   });
   if (name === 'disponibilita') renderMatchSelect();
-  if (name === 'statistiche') loadStats('presenze');
+  if (name === 'statistiche') loadStats();
+  if (name === 'galleria') loadGalleria();
 };
- 
+
 window.openMatch = function (id) {
   switchTab('disponibilita');
-  setTimeout(() => {
-    const sel = document.getElementById('match-select');
-    if (sel) { sel.value = id; loadAvail(); }
-  }, 100);
+  setTimeout(() => { const s = document.getElementById('match-select'); if (s) { s.value = id; loadAvail(); } }, 150);
 };
+
+function showMsg(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 2500);
+}
