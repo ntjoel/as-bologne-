@@ -222,18 +222,41 @@ window.addPlayer = async function () {
   const pos = document.getElementById("new-player-pos").value;
   const num = document.getElementById("new-player-num").value;
   const photoFile = document.getElementById("new-player-photo").files[0];
-  if (!nome) return;
-
-  let foto_url = null;
-  if (photoFile) {
-    const ext = photoFile.name.split('.').pop();
-    const path = `players/${Date.now()}.${ext}`;
-    const { error: upErr } = await supabase.storage.from('foto').upload(path, photoFile, { upsert: true });
-    if (!upErr) foto_url = path;
+  const errEl = document.getElementById("player-err");
+  if (!nome) {
+    errEl.textContent = "Le nom est requis";
+    showMsg('player-err');
+    return;
   }
 
-  const { error } = await supabase.from("giocatori").insert({ nome, posizione: pos, numero: num ? parseInt(num) : null, attivo: true, foto_url });
-  if (error) { console.error(error); showMsg('player-err'); return; }
+  // Prova a caricare la foto SE c'è un bucket. Se fallisce, continua comunque senza foto.
+  let foto_url = null;
+  if (photoFile) {
+    try {
+      const ext = photoFile.name.split('.').pop();
+      const path = `players/${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('foto').upload(path, photoFile, { upsert: true });
+      if (upErr) {
+        console.warn("Foto non caricata (bucket mancante?):", upErr.message);
+        // La foto puo' essere aggiunta dopo - non blocchiamo l'inserimento
+      } else {
+        foto_url = supabase.storage.from('foto').getPublicUrl(path).data.publicUrl;
+      }
+    } catch (e) {
+      console.warn("Errore foto, continuo senza:", e);
+    }
+  }
+
+  // Inserisci il giocatore (con o senza foto)
+  const { error } = await supabase.from("giocatori").insert({
+    nome, posizione: pos, numero: num ? parseInt(num) : null, attivo: true, foto_url
+  });
+  if (error) {
+    console.error("Errore inserimento giocatore:", error);
+    errEl.textContent = "Erreur: " + error.message;
+    showMsg('player-err');
+    return;
+  }
   document.getElementById("new-player-nome").value = '';
   document.getElementById("new-player-num").value = '';
   document.getElementById("new-player-photo").value = '';
@@ -259,9 +282,8 @@ async function loadFotoAdmin() {
   const el = document.getElementById("foto-list");
   if (!foto || !foto.length) { el.innerHTML = '<div class="empty-msg">Nessuna foto ancora.</div>'; return; }
   el.innerHTML = '<div class="photo-grid">' + foto.map(f => {
-    const url = supabase.storage.from('foto').getPublicUrl(f.url).data.publicUrl;
     return `<div class="photo-thumb">
-      <img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" onerror="this.parentElement.innerHTML='📷'">
+      <img src="${f.url}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" onerror="this.parentElement.innerHTML='📷'">
     </div>`;
   }).join('') + '</div>';
 }
@@ -277,7 +299,8 @@ window.uploadFoto = async function () {
     const path = `matches/${matchId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
     const { error: upErr } = await supabase.storage.from('foto').upload(path, file);
     if (upErr) { console.error(upErr); continue; }
-    await supabase.from("foto").insert({ match_id: parseInt(matchId), url: path, didascalia: caption });
+    const publicUrl = supabase.storage.from('foto').getPublicUrl(path).data.publicUrl;
+    await supabase.from("foto").insert({ match_id: parseInt(matchId), url: publicUrl, didascalia: caption });
   }
 
   document.getElementById("foto-input").value = '';

@@ -198,9 +198,8 @@ async function loadGalleria() {
       <div class="card-title"><i class="ti ti-photo"></i> ${label}</div>
       <div class="photo-grid">`;
     byMatch[mid].forEach(f => {
-      const url = supabase.storage.from('foto').getPublicUrl(f.url).data.publicUrl;
       html += `<div class="photo-thumb">
-        <img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" onerror="this.parentElement.innerHTML='<i class=ti ti-photo style=font-size:24px></i>'">
+        <img src="${f.url}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" onerror="this.parentElement.innerHTML='<i class=ti ti-photo style=font-size:24px></i>'">
       </div>`;
     });
     html += `</div></div>`;
