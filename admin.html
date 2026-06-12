@@ -1,1 +1,118 @@
-admin
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — A.S. Bologne</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="topbar-crest"><i class="ti ti-shield-half"></i></div>
+    <div class="topbar-info">
+      <div class="topbar-title">A.S. Bologne — Admin</div>
+      <div class="topbar-sub">Pannello di controllo</div>
+    </div>
+    <button class="topbar-back" onclick="window.location.href='index.html'">
+      <i class="ti ti-arrow-left"></i> Sito
+    </button>
+  </div>
+
+  <!-- LOGIN -->
+  <div class="content" id="login-area">
+    <div class="card" style="max-width:380px;margin:40px auto;">
+      <div style="text-align:center;margin-bottom:20px;">
+        <div class="admin-icon"><i class="ti ti-shield"></i></div>
+        <div style="font-size:16px;font-weight:500;margin-top:10px;">Espace Admin</div>
+        <div style="font-size:13px;color:#888;margin-top:4px;">A.S. Bologne</div>
+      </div>
+      <div class="form-row">
+        <label class="form-lbl">Email</label>
+        <input type="email" id="admin-email" placeholder="admin@asbologne.com">
+      </div>
+      <div class="form-row">
+        <label class="form-lbl">Mot de passe</label>
+        <input type="password" id="admin-pw" placeholder="••••••••" onkeydown="if(event.key==='Enter')adminLogin()">
+      </div>
+      <button class="btn-primary" onclick="adminLogin()">Accéder</button>
+      <div class="err-msg" id="login-err" style="margin-top:10px;">Email ou mot de passe incorrect</div>
+    </div>
+  </div>
+
+  <!-- PANNELLO ADMIN (nascosto finché non si fa login) -->
+  <div class="content section-hidden" id="admin-area">
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div style="font-size:14px;color:#888;">Connecté comme admin</div>
+      <button class="btn-outline" onclick="adminLogout()"><i class="ti ti-logout"></i> Déconnexion</button>
+    </div>
+
+    <div class="metrics">
+      <div class="metric metric-accent"><div class="metric-val" id="adm-matches">0</div><div class="metric-lbl">Matches</div></div>
+      <div class="metric"><div class="metric-val" id="adm-risposte">0</div><div class="metric-lbl">Réponses</div></div>
+      <div class="metric"><div class="metric-val" id="adm-giocatori">0</div><div class="metric-lbl">Joueurs</div></div>
+    </div>
+
+    <!-- Aggiungi partita -->
+    <div class="card">
+      <div class="card-title"><i class="ti ti-calendar-plus"></i> Ajouter un match</div>
+      <div class="form-grid">
+        <div class="form-row"><label class="form-lbl">Date</label><input type="date" id="new-data"></div>
+        <div class="form-row"><label class="form-lbl">Adversaire</label><input type="text" id="new-avv" placeholder="FC Lyon"></div>
+      </div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label class="form-lbl">Domicile / Extérieur</label>
+          <select id="new-ht"><option value="Casa">Domicile</option><option value="Trasferta">Extérieur</option></select>
+        </div>
+        <div class="form-row"><label class="form-lbl">Heure</label><input type="time" id="new-ora" value="15:30"></div>
+      </div>
+      <div class="form-row"><label class="form-lbl">Terrain</label><input type="text" id="new-campo" placeholder="Stade Municipal"></div>
+      <button class="btn-primary" onclick="addMatch()"><i class="ti ti-plus"></i> Ajouter au calendrier</button>
+      <div class="success-msg" id="match-success"><i class="ti ti-check"></i> Match ajouté !</div>
+      <div class="err-msg" id="match-err">Date et adversaire requis</div>
+    </div>
+
+    <!-- Risultato -->
+    <div class="card">
+      <div class="card-title"><i class="ti ti-pencil"></i> Entrer un résultat</div>
+      <div class="form-grid">
+        <div class="form-row"><label class="form-lbl">Match</label><select id="res-match"></select></div>
+        <div class="form-row"><label class="form-lbl">Score (ex. 2-1)</label><input type="text" id="res-score" placeholder="2-1"></div>
+      </div>
+      <button class="btn-primary" onclick="saveResult()"><i class="ti ti-device-floppy"></i> Enregistrer</button>
+      <div class="success-msg" id="res-success"><i class="ti ti-check"></i> Résultat enregistré !</div>
+    </div>
+
+    <!-- Lista partite admin -->
+    <div class="card">
+      <div class="card-title"><i class="ti ti-list-details"></i> Matches enregistrés</div>
+      <div id="admin-match-list"><div class="empty-msg">Nessuna partita ancora.</div></div>
+    </div>
+
+    <!-- Gestione giocatori -->
+    <div class="card">
+      <div class="card-title"><i class="ti ti-user-plus"></i> Ajouter un joueur</div>
+      <div class="form-grid">
+        <div class="form-row"><label class="form-lbl">Nom complet</label><input type="text" id="new-player-nome" placeholder="Marco Rossi"></div>
+        <div class="form-row">
+          <label class="form-lbl">Poste</label>
+          <select id="new-player-pos">
+            <option value="G">Gardien (G)</option>
+            <option value="D">Défenseur (D)</option>
+            <option value="M" selected>Milieu (M)</option>
+            <option value="A">Attaquant (A)</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn-primary" onclick="addPlayer()"><i class="ti ti-plus"></i> Ajouter joueur</button>
+      <div class="success-msg" id="player-success"><i class="ti ti-check"></i> Joueur ajouté !</div>
+    </div>
+
+  </div>
+
+  <script type="module" src="admin.js"></script>
+</body>
+</html>
