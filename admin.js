@@ -3,8 +3,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // ============================================================
 // STESSE CREDENZIALI DI app.js
 // ============================================================
-const SUPABASE_URL = "https://TUO-PROGETTO.supabase.co";   // <-- cambia
-const SUPABASE_KEY = "eyJ...";                              // <-- cambia
+const SUPABASE_URL = "https://uiypmfkfwcvdujkvsjxp.supabase.co"; // <-- cambia
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpeXBtZmtmd2N2ZHVqa3ZzanhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTE2MTAsImV4cCI6MjA5NjgyNzYxMH0.iPvSXzsXPQRJdXURELrjjWOoi68MV7w9yONbt17VXew";  // <-- incolla la tua anon key
+
 // ============================================================
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
