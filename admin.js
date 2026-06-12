@@ -124,15 +124,16 @@ window.saveResult = async function () {
 
 // ---- PRESENZE ----
 async function loadMatchSelectPresenze() {
-  const { data } = await supabase.from("matches").select("*").eq("stato", "passata").order("data", { ascending: false });
+  const { data } = await supabase.from("matches").select("*").order("data", { ascending: false });
   const sel = document.getElementById("pres-match-select");
   if (!data || !data.length) {
-    sel.innerHTML = '<option value="">-- Nessuna partita giocata --</option>';
+    sel.innerHTML = '<option value="">-- Nessuna partita --</option>';
     return;
   }
   sel.innerHTML = '<option value="">-- Seleziona --</option>' + data.map(m => {
     const dt = new Date(m.data + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-    return `<option value="${m.id}">${dt} — ${m.avversario}</option>`;
+    const tag = m.stato === 'passata' ? '' : ' (à venir)';
+    return `<option value="${m.id}">${dt} — ${m.avversario}${tag}</option>`;
   }).join('');
 }
 
@@ -142,42 +143,96 @@ window.loadPresenze = async function () {
   if (!matchId) { wrap.innerHTML = ''; return; }
 
   const { data: players } = await supabase.from("giocatori").select("*").eq("attivo", true).order("nome");
-  if (!players || !players.length) {
-    wrap.innerHTML = '<div class="card"><div class="empty-msg">Nessun giocatore.</div></div>';
-    return;
-  }
-
   const { data: stats } = await supabase.from("statistiche").select("*").eq("match_id", matchId);
+  const { data: dispo } = await supabase.from("disponibilita").select("*").eq("match_id", matchId);
+
   const statMap = {};
   (stats || []).forEach(s => statMap[s.giocatore_id] = s);
 
-  let html = '<div class="card"><div class="card-title"><i class="ti ti-clipboard-check"></i> Présences — cliquez pour modifier</div>';
-  players.forEach(p => {
-    const s = statMap[p.id];
-    const presente = s && s.presente;
-    const initials = p.nome.split(' ').map(x => x[0]).join('').toUpperCase();
-    html += `<div class="pres-row" id="prow-${p.id}">
-      <div style="display:flex;align-items:center;gap:10px;flex:1">
-        ${p.foto_url
-          ? `<img src="${p.foto_url}" class="player-photo-sm" onerror="this.style.display='none'">`
-          : `<div class="avatar">${initials}</div>`}
-        <div>
-          <div style="font-size:14px;font-weight:500">${p.nome}</div>
-          <span class="badge badge-navy" style="font-size:10px">${p.posizione}</span>
+  let html = '';
+
+  // Sezione 1: giocatori registrati
+  if (!players || !players.length) {
+    html += '<div class="card"><div class="empty-msg">Nessun giocatore registrato. Aggiungili dal tab Joueurs.</div></div>';
+  } else {
+    html += '<div class="card"><div class="card-title"><i class="ti ti-clipboard-check"></i> Présences — cliquez pour modifier</div>';
+    // mappa nomi giocatori (per evidenziare chi ha dato disponibilità)
+    const dispoMap = {};
+    (dispo || []).forEach(d => { dispoMap[d.nome.toLowerCase().trim()] = d.disponibile; });
+
+    players.forEach(p => {
+      const s = statMap[p.id];
+      const presente = s && s.presente;
+      const initials = p.nome.split(' ').map(x => x[0]).join('').toUpperCase();
+      // info disponibilità data dal giocatore
+      const dispoVal = dispoMap[p.nome.toLowerCase().trim()];
+      let dispoTag = '';
+      if (dispoVal === true) dispoTag = '<span class="badge badge-win" style="font-size:9px;margin-left:6px">dispo ✓</span>';
+      else if (dispoVal === false) dispoTag = '<span class="badge badge-loss" style="font-size:9px;margin-left:6px">pas dispo</span>';
+
+      html += `<div class="pres-row" id="prow-${p.id}">
+        <div style="display:flex;align-items:center;gap:10px;flex:1">
+          ${p.foto_url
+            ? `<img src="${p.foto_url}" class="player-photo-sm" onerror="this.style.display='none'">`
+            : `<div class="avatar">${initials}</div>`}
+          <div>
+            <div style="font-size:14px;font-weight:500">${p.nome}${dispoTag}</div>
+            <span class="badge badge-navy" style="font-size:10px">${p.posizione}</span>
+          </div>
         </div>
-      </div>
-      <div style="display:flex;gap:8px;">
-        <button class="pres-btn ${presente ? 'pres-btn-si active-si' : 'pres-btn-si'}" onclick="setPres(${p.id},${matchId},true,'prow-${p.id}')">
-          <i class="ti ti-check"></i> Présent
-        </button>
-        <button class="pres-btn ${!presente && s ? 'pres-btn-no active-no' : 'pres-btn-no'}" onclick="setPres(${p.id},${matchId},false,'prow-${p.id}')">
-          <i class="ti ti-x"></i> Absent
-        </button>
-      </div>
-    </div>`;
-  });
-  html += '</div>';
+        <div style="display:flex;gap:8px;">
+          <button class="pres-btn ${presente ? 'pres-btn-si active-si' : 'pres-btn-si'}" onclick="setPres(${p.id},${matchId},true,'prow-${p.id}')">
+            <i class="ti ti-check"></i> Présent
+          </button>
+          <button class="pres-btn ${!presente && s ? 'pres-btn-no active-no' : 'pres-btn-no'}" onclick="setPres(${p.id},${matchId},false,'prow-${p.id}')">
+            <i class="ti ti-x"></i> Absent
+          </button>
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+  }
+
+  // Sezione 2: chi ha dato disponibilità ma NON è tra i giocatori registrati
+  if (dispo && dispo.length) {
+    const playerNames = new Set((players || []).map(p => p.nome.toLowerCase().trim()));
+    const orphans = dispo.filter(d => !playerNames.has(d.nome.toLowerCase().trim()));
+    if (orphans.length) {
+      html += '<div class="card"><div class="card-title"><i class="ti ti-user-question"></i> Ont répondu mais pas encore dans l\'effectif</div>';
+      orphans.forEach(d => {
+        const initials = d.nome.split(' ').map(x => x[0]).join('').toUpperCase();
+        const dispoTag = d.disponibile
+          ? '<span class="badge badge-win" style="font-size:10px">Disponible</span>'
+          : '<span class="badge badge-loss" style="font-size:10px">Pas dispo</span>';
+        html += `<div class="pres-row">
+          <div style="display:flex;align-items:center;gap:10px;flex:1">
+            <div class="avatar" style="background:#888">${initials}</div>
+            <div>
+              <div style="font-size:14px;font-weight:500">${d.nome}</div>
+              ${dispoTag}
+            </div>
+          </div>
+          <button class="pres-btn" style="background:#1a2a5e;color:white;border-color:transparent;font-weight:bold;"
+            onclick="quickAddPlayer('${d.nome.replace(/'/g, "\\'")}')">
+            <i class="ti ti-user-plus"></i> Ajouter
+          </button>
+        </div>`;
+      });
+      html += '</div>';
+    }
+  }
+
   wrap.innerHTML = html;
+};
+
+// Aggiunge rapidamente un giocatore che ha dato disponibilità
+window.quickAddPlayer = async function (nome) {
+  const { error } = await supabase.from("giocatori").insert({ nome, posizione: 'M', attivo: true });
+  if (error) { console.error(error); alert("Erreur: " + error.message); return; }
+  await loadPresenze();
+  await loadPlayerList();
+  const { count } = await supabase.from("giocatori").select("*", { count: "exact", head: true });
+  document.getElementById("adm-giocatori").textContent = count || 0;
 };
 
 window.setPres = async function (playerId, matchId, presente, rowId) {
