@@ -105,6 +105,16 @@ input:focus, select:focus { border-color: #1a2a5e; }
 
 /* LOGIN CARD */
 .login-card { max-width: 360px; margin: 40px auto; }
+
+/* ICON BUTTONS (edit/delete) */
+.icon-btn { width: 34px; height: 34px; border-radius: 8px; border: 1px solid #d1d5db; background: white; cursor: pointer; color: #1a2a5e; font-size: 15px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.icon-btn:hover { background: #e8ecf7; }
+.icon-btn-del { color: #c0001e; }
+.icon-btn-del:hover { background: #fcebeb; }
+
+/* LOGO PREVIEW */
+.logo-preview { width: 90px; height: 90px; margin: 0 auto; background: white; border-radius: 50%; border: 3px solid #f0c030; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.logo-preview img { width: 100%; height: 100%; object-fit: contain; padding: 6px; }
 .admin-icon { width: 64px; height: 64px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto; color: #1a2a5e; font-size: 26px; border: 3px solid #f0c030; overflow: hidden; }
 .admin-icon img { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
 

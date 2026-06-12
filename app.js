@@ -7,8 +7,19 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 let allMatches = [];
 
 document.addEventListener("DOMContentLoaded", async () => {
+  applyStoredLogo();
   await loadMatches();
 });
+
+// Carica il logo salvato dall'admin e lo applica alla topbar
+async function applyStoredLogo() {
+  try {
+    const { data } = await supabase.from("impostazioni").select("valore").eq("chiave", "logo_url").single();
+    if (data && data.valore) {
+      document.querySelectorAll('.topbar-crest img').forEach(img => { img.src = data.valore; });
+    }
+  } catch (e) { /* tabella non ancora creata, ignora */ }
+}
 
 // ---- MATCHES ----
 async function loadMatches() {

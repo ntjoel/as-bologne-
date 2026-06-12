@@ -7,8 +7,19 @@ const ADMIN_PASSWORD = "admin123+";
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 document.addEventListener("DOMContentLoaded", () => {
+  applyStoredLogo();
   if (sessionStorage.getItem("asbologne_admin") === "true") showPanel();
 });
+
+// Carica il logo salvato e lo applica alla topbar / login
+async function applyStoredLogo() {
+  try {
+    const { data } = await supabase.from("impostazioni").select("valore").eq("chiave", "logo_url").single();
+    if (data && data.valore) {
+      document.querySelectorAll('.topbar-crest img, .admin-icon img').forEach(img => { img.src = data.valore; });
+    }
+  } catch (e) { /* tabella impostazioni non ancora creata, ignora */ }
+}
 
 // ---- AUTH (solo password, no email) ----
 window.adminLogin = function () {
@@ -51,13 +62,44 @@ async function loadAllData() {
 
 // ---- TAB ADMIN ----
 window.switchAdminTab = function (name, btn) {
-  ['matches', 'presenze', 'giocatori', 'foto'].forEach(t => {
+  ['matches', 'presenze', 'giocatori', 'foto', 'reglages'].forEach(t => {
     document.getElementById('adm-tab-' + t)?.classList.toggle('section-hidden', t !== name);
   });
   document.querySelectorAll('.tab-sub-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   if (name === 'presenze') loadMatchSelectPresenze();
   if (name === 'foto') loadFotoMatchSelect();
+  if (name === 'reglages') loadCurrentLogo();
+};
+
+// ---- LOGO / IMPOSTAZIONI ----
+async function loadCurrentLogo() {
+  const { data } = await supabase.from("impostazioni").select("valore").eq("chiave", "logo_url").single();
+  if (data && data.valore) {
+    const img = document.getElementById("logo-current");
+    if (img) { img.src = data.valore; img.style.display = 'block'; }
+  }
+}
+
+window.uploadLogo = async function () {
+  const file = document.getElementById("logo-input").files[0];
+  if (!file) { document.getElementById("logo-err").textContent = "Sélectionne un fichier"; showMsg('logo-err'); return; }
+  try {
+    const ext = file.name.split('.').pop();
+    const path = `logo/logo_${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase.storage.from('foto').upload(path, file, { upsert: true });
+    if (upErr) { document.getElementById("logo-err").textContent = "Erreur: " + upErr.message; showMsg('logo-err'); return; }
+    const url = supabase.storage.from('foto').getPublicUrl(path).data.publicUrl;
+    // Salva nelle impostazioni (upsert)
+    const { error } = await supabase.from("impostazioni").upsert({ chiave: "logo_url", valore: url }, { onConflict: "chiave" });
+    if (error) { document.getElementById("logo-err").textContent = "Erreur: " + error.message; showMsg('logo-err'); return; }
+    document.getElementById("logo-current").src = url;
+    document.getElementById("logo-input").value = '';
+    showMsg('logo-success');
+  } catch (e) {
+    document.getElementById("logo-err").textContent = "Erreur: " + e.message;
+    showMsg('logo-err');
+  }
 };
 
 // ---- MATCHES ----
@@ -258,7 +300,8 @@ async function loadPlayerList() {
   if (!data || !data.length) { el.innerHTML = '<div class="empty-msg">Nessun giocatore ancora.</div>'; return; }
   el.innerHTML = data.map(p => {
     const initials = p.nome.split(' ').map(x => x[0]).join('').toUpperCase();
-    return `<div class="pres-row">
+    const safeName = p.nome.replace(/'/g, "\\'");
+    return `<div class="pres-row" id="player-row-${p.id}">
       <div style="display:flex;align-items:center;gap:10px;flex:1">
         ${p.foto_url
           ? `<img src="${p.foto_url}" class="player-photo-sm" onerror="this.style.display='none'">`
@@ -268,9 +311,75 @@ async function loadPlayerList() {
           <span class="badge badge-navy" style="font-size:10px">${p.posizione}${p.numero ? ' · #' + p.numero : ''}</span>
         </div>
       </div>
+      <div style="display:flex;gap:6px;">
+        <button class="icon-btn" onclick="editPlayer(${p.id})" title="Modifier"><i class="ti ti-pencil"></i></button>
+        <button class="icon-btn icon-btn-del" onclick="deletePlayer(${p.id},'${safeName}')" title="Supprimer"><i class="ti ti-trash"></i></button>
+      </div>
     </div>`;
   }).join('');
 }
+
+// Mostra il form di modifica inline per un giocatore
+window.editPlayer = async function (id) {
+  const { data: p } = await supabase.from("giocatori").select("*").eq("id", id).single();
+  if (!p) return;
+  const row = document.getElementById(`player-row-${id}`);
+  if (!row) return;
+  row.innerHTML = `<div style="width:100%">
+    <div class="form-row"><label class="form-lbl">Nom complet</label><input type="text" id="edit-nome-${id}" value="${p.nome.replace(/"/g, '&quot;')}"></div>
+    <div class="form-grid">
+      <div class="form-row">
+        <label class="form-lbl">Poste</label>
+        <select id="edit-pos-${id}">
+          <option value="G" ${p.posizione === 'G' ? 'selected' : ''}>Gardien (G)</option>
+          <option value="D" ${p.posizione === 'D' ? 'selected' : ''}>Défenseur (D)</option>
+          <option value="M" ${p.posizione === 'M' ? 'selected' : ''}>Milieu (M)</option>
+          <option value="A" ${p.posizione === 'A' ? 'selected' : ''}>Attaquant (A)</option>
+        </select>
+      </div>
+      <div class="form-row"><label class="form-lbl">Numéro</label><input type="number" id="edit-num-${id}" value="${p.numero || ''}" min="1" max="99"></div>
+    </div>
+    <div class="form-row"><label class="form-lbl">Changer la photo (optionnel)</label><input type="file" id="edit-photo-${id}" accept="image/*"></div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button class="btn-primary" style="flex:1" onclick="savePlayer(${id})"><i class="ti ti-device-floppy"></i> Enregistrer</button>
+      <button class="btn-outline" onclick="loadPlayerList()"><i class="ti ti-x"></i> Annuler</button>
+    </div>
+  </div>`;
+};
+
+// Salva le modifiche del giocatore
+window.savePlayer = async function (id) {
+  const nome = document.getElementById(`edit-nome-${id}`).value.trim();
+  const pos = document.getElementById(`edit-pos-${id}`).value;
+  const num = document.getElementById(`edit-num-${id}`).value;
+  const photoFile = document.getElementById(`edit-photo-${id}`).files[0];
+  if (!nome) { alert("Le nom est requis"); return; }
+
+  const updates = { nome, posizione: pos, numero: num ? parseInt(num) : null };
+
+  if (photoFile) {
+    try {
+      const ext = photoFile.name.split('.').pop();
+      const path = `players/${id}_${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('foto').upload(path, photoFile, { upsert: true });
+      if (!upErr) updates.foto_url = supabase.storage.from('foto').getPublicUrl(path).data.publicUrl;
+    } catch (e) { console.warn("Foto non caricata:", e); }
+  }
+
+  const { error } = await supabase.from("giocatori").update(updates).eq("id", id);
+  if (error) { alert("Erreur: " + error.message); return; }
+  await loadPlayerList();
+};
+
+// Elimina un giocatore (soft delete: attivo = false)
+window.deletePlayer = async function (id, nome) {
+  if (!confirm(`Supprimer ${nome} de l'effectif ?`)) return;
+  const { error } = await supabase.from("giocatori").update({ attivo: false }).eq("id", id);
+  if (error) { alert("Erreur: " + error.message); return; }
+  await loadPlayerList();
+  const { count } = await supabase.from("giocatori").select("*", { count: "exact", head: true }).eq("attivo", true);
+  document.getElementById("adm-giocatori").textContent = count || 0;
+};
 
 window.addPlayer = async function () {
   const nome = document.getElementById("new-player-nome").value.trim();

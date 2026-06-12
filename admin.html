@@ -54,6 +54,7 @@
       <button class="tab-sub-btn" onclick="switchAdminTab('presenze',this)"><i class="ti ti-clipboard-check"></i> Présences</button>
       <button class="tab-sub-btn" onclick="switchAdminTab('giocatori',this)"><i class="ti ti-users"></i> Joueurs</button>
       <button class="tab-sub-btn" onclick="switchAdminTab('foto',this)"><i class="ti ti-photo"></i> Photos</button>
+      <button class="tab-sub-btn" onclick="switchAdminTab('reglages',this)"><i class="ti ti-settings"></i> Réglages</button>
     </div>
 
     <!-- TAB MATCHES -->
@@ -151,6 +152,25 @@
       <div class="card">
         <div class="card-title"><i class="ti ti-photo"></i> Photos existantes</div>
         <div id="foto-list"><div class="empty-msg">Nessuna foto ancora.</div></div>
+      </div>
+    </div>
+
+    <!-- TAB REGLAGES -->
+    <div id="adm-tab-reglages" class="section-hidden">
+      <div class="card">
+        <div class="card-title"><i class="ti ti-shield"></i> Logo de l'équipe</div>
+        <div style="text-align:center;margin-bottom:16px;">
+          <div class="logo-preview"><img id="logo-current" src="logo.png" alt="logo" onerror="this.style.display='none'"></div>
+          <div style="font-size:12px;color:#888;margin-top:8px;">Logo actuel</div>
+        </div>
+        <div class="form-row">
+          <label class="form-lbl">Nouveau logo (PNG ou JPG)</label>
+          <input type="file" id="logo-input" accept="image/*" style="padding:6px;">
+        </div>
+        <button class="btn-primary" onclick="uploadLogo()"><i class="ti ti-upload"></i> Changer le logo</button>
+        <div class="success-msg" id="logo-success"><i class="ti ti-check"></i> Logo mis à jour !</div>
+        <div class="err-msg" id="logo-err">Erreur lors du changement</div>
+        <div style="font-size:11px;color:#aaa;margin-top:10px;text-align:center;">Le nouveau logo apparaîtra sur tout le site.</div>
       </div>
     </div>
 
