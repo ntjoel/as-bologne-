@@ -105,8 +105,18 @@ window.submitAvail = async function (ok) {
 };
 
 // ---- STATISTICHE con foto e presenze ----
+let currentStatType = 'presenze';
+
+window.switchStat = function (type, btn) {
+  document.querySelectorAll('#sec-statistiche .tab-sub-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentStatType = type;
+  loadStats();
+};
+
 async function loadStats() {
   const el = document.getElementById("stat-content");
+  const titleEl = document.getElementById("stat-title");
   el.innerHTML = '<div class="empty-msg">Chargement...</div>';
 
   const { data: players, error: pe } = await supabase.from("giocatori").select("*").eq("attivo", true).order("nome");
@@ -118,66 +128,109 @@ async function loadStats() {
   }
 
   const playedMatches = matches ? matches.filter(m => m.stato === 'passata') : [];
-
   if (!playedMatches.length) {
     el.innerHTML = '<div class="empty-msg">Nessuna partita giocata ancora.</div>';
     return;
   }
 
-  // Carica tutte le presenze
-  const { data: presenze } = await supabase.from("statistiche").select("*");
-  const presMap = {};
-  (presenze || []).forEach(p => {
-    const key = `${p.giocatore_id}_${p.match_id}`;
-    presMap[key] = p;
-  });
+  const { data: stats } = await supabase.from("statistiche").select("*");
+  const statMap = {};
+  (stats || []).forEach(s => { statMap[`${s.giocatore_id}_${s.match_id}`] = s; });
 
-  let html = `<div style="overflow-x:auto;">
-    <table class="stat-table-full">
-      <thead>
-        <tr>
-          <th class="th-player">Joueur</th>`;
+  const titles = { presenze: 'Présences joueurs', gol: 'Buts & Passes décisives', cartellini: 'Cartons' };
+  const icons = { presenze: 'ti-clipboard-check', gol: 'ti-ball-football', cartellini: 'ti-cards' };
+  titleEl.innerHTML = `<i class="ti ${icons[currentStatType]}"></i> ${titles[currentStatType]}`;
 
-  playedMatches.forEach(m => {
-    const dt = new Date(m.data + 'T00:00:00');
-    const d = dt.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-    html += `<th class="th-match" title="${m.avversario}">${d}<br><span style="font-size:10px;font-weight:normal;">${m.avversario.split(' ')[0]}</span></th>`;
-  });
-  html += `<th class="th-total">Total</th></tr></thead><tbody>`;
+  const posCol = { G: 'badge-navy', D: 'badge-navy', M: 'badge-gold', A: 'badge-red' };
 
-  players.forEach(p => {
+  function playerCell(p) {
     const photoUrl = p.foto_url
       ? `<img src="${p.foto_url}" class="player-photo" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">`
       : '';
     const initials = p.nome.split(' ').map(x => x[0]).join('').toUpperCase();
-    html += `<tr>
-      <td class="td-player">
-        <div class="player-cell">
-          ${photoUrl}
-          <div class="avatar" style="${p.foto_url ? 'display:none' : ''}">${initials}</div>
-          <div class="player-info">
-            <div class="player-name">${p.nome}</div>
-            <span class="badge badge-navy" style="font-size:10px">${p.posizione}</span>
-          </div>
-        </div>
-      </td>`;
+    return `<div class="player-cell">
+      ${photoUrl}
+      <div class="avatar" style="${p.foto_url ? 'display:none' : ''}">${initials}</div>
+      <div class="player-info">
+        <div class="player-name">${p.nome}</div>
+        <span class="badge ${posCol[p.posizione] || 'badge-navy'}" style="font-size:10px">${p.posizione}</span>
+      </div>
+    </div>`;
+  }
 
-    let total = 0;
+  let html = '';
+
+  // ---------- PRESENZE: griglia per partita + % ----------
+  if (currentStatType === 'presenze') {
+    html = `<div style="overflow-x:auto;"><table class="stat-table-full"><thead><tr><th class="th-player">Joueur</th>`;
     playedMatches.forEach(m => {
-      const key = `${p.id}_${m.id}`;
-      const pres = presMap[key];
-      const presente = pres && pres.presente;
-      if (presente) total++;
-      html += `<td class="td-pres">${presente
-        ? '<span class="pres-si">✓</span>'
-        : '<span class="pres-no">✗</span>'
-      }</td>`;
+      const d = new Date(m.data + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+      html += `<th class="th-match" title="${m.avversario}">${d}<br><span style="font-size:10px;font-weight:normal;">${m.avversario.split(' ')[0]}</span></th>`;
     });
+    html += `<th class="th-total">Total</th><th class="th-total" style="background:#1a7a1a !important">%</th></tr></thead><tbody>`;
 
-    html += `<td class="td-total">${total}</td></tr>`;
-  });
+    players.forEach(p => {
+      html += `<tr><td class="td-player">${playerCell(p)}</td>`;
+      let total = 0;
+      playedMatches.forEach(m => {
+        const s = statMap[`${p.id}_${m.id}`];
+        const presente = s && s.presente;
+        if (presente) total++;
+        html += `<td class="td-pres">${presente ? '<span class="pres-si">✓</span>' : '<span class="pres-no">✗</span>'}</td>`;
+      });
+      const pct = Math.round(total / playedMatches.length * 100);
+      html += `<td class="td-total">${total}</td><td class="td-total" style="background:#eaf3de;color:#27500a">${pct}%</td></tr>`;
+    });
+    html += '</tbody></table></div>';
+  }
 
-  html += '</tbody></table></div>';
+  // ---------- GOL & ASSIST ----------
+  else if (currentStatType === 'gol') {
+    const rows = players.map(p => {
+      let gol = 0, assist = 0;
+      playedMatches.forEach(m => {
+        const s = statMap[`${p.id}_${m.id}`];
+        if (s) { gol += s.gol || 0; assist += s.assist || 0; }
+      });
+      return { p, gol, assist };
+    }).sort((a, b) => (b.gol + b.assist) - (a.gol + a.assist));
+
+    html = `<div style="overflow-x:auto;"><table class="stat-table"><thead><tr>
+      <th style="width:28px">#</th><th>Joueur</th>
+      <th style="width:46px;text-align:center">Buts</th>
+      <th style="width:46px;text-align:center">Passes</th>
+      <th style="width:52px;text-align:center">Total</th></tr></thead><tbody>`;
+    rows.forEach((r, i) => {
+      html += `<tr><td style="color:#aaa">${i + 1}</td><td>${playerCell(r.p)}</td>
+        <td class="stat-num">${r.gol}</td><td class="stat-num">${r.assist}</td>
+        <td class="stat-num" style="color:#1a2a5e">${r.gol + r.assist}</td></tr>`;
+    });
+    html += '</tbody></table></div>';
+  }
+
+  // ---------- CARTELLINI ----------
+  else {
+    const rows = players.map(p => {
+      let gialli = 0, rossi = 0;
+      playedMatches.forEach(m => {
+        const s = statMap[`${p.id}_${m.id}`];
+        if (s) { gialli += s.gialli || 0; rossi += s.rossi || 0; }
+      });
+      return { p, gialli, rossi };
+    }).sort((a, b) => (b.gialli + b.rossi * 2) - (a.gialli + a.rossi * 2));
+
+    html = `<div style="overflow-x:auto;"><table class="stat-table"><thead><tr>
+      <th style="width:28px">#</th><th>Joueur</th>
+      <th style="width:60px;text-align:center">🟨 Jaunes</th>
+      <th style="width:60px;text-align:center">🟥 Rouges</th></tr></thead><tbody>`;
+    rows.forEach((r, i) => {
+      html += `<tr><td style="color:#aaa">${i + 1}</td><td>${playerCell(r.p)}</td>
+        <td class="stat-num">${r.gialli ? `<span class="badge badge-gold">${r.gialli}</span>` : '-'}</td>
+        <td class="stat-num">${r.rossi ? `<span class="badge badge-red">${r.rossi}</span>` : '-'}</td></tr>`;
+    });
+    html += '</tbody></table></div>';
+  }
+
   el.innerHTML = html;
 }
 

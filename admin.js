@@ -275,8 +275,8 @@ window.loadPresenze = async function () {
       if (dispoVal === true) dispoTag = '<span class="badge badge-win" style="font-size:9px;margin-left:6px">dispo ✓</span>';
       else if (dispoVal === false) dispoTag = '<span class="badge badge-loss" style="font-size:9px;margin-left:6px">pas dispo</span>';
 
-      html += `<div class="pres-row" id="prow-${p.id}">
-        <div style="display:flex;align-items:center;gap:10px;flex:1">
+      html += `<div class="pres-row pres-row-stats" id="prow-${p.id}">
+        <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:140px;">
           ${p.foto_url
             ? `<img src="${p.foto_url}" class="player-photo-sm" onerror="this.style.display='none'">`
             : `<div class="avatar">${initials}</div>`}
@@ -285,14 +285,22 @@ window.loadPresenze = async function () {
             <span class="badge badge-navy" style="font-size:10px">${p.posizione}</span>
           </div>
         </div>
-        <div style="display:flex;gap:6px;align-items:center;">
-          <button class="pres-btn ${presente ? 'pres-btn-si active-si' : 'pres-btn-si'}" onclick="setPres(${p.id},${matchId},true,'prow-${p.id}')">
-            <i class="ti ti-check"></i> Présent
-          </button>
-          <button class="pres-btn ${!presente && s ? 'pres-btn-no active-no' : 'pres-btn-no'}" onclick="setPres(${p.id},${matchId},false,'prow-${p.id}')">
-            <i class="ti ti-x"></i> Absent
-          </button>
-          <button class="icon-btn icon-btn-del" onclick="deletePlayer(${p.id},'${p.nome.replace(/'/g, "\\'")}')" title="Supprimer ce joueur (doublon)"><i class="ti ti-trash"></i></button>
+        <div class="pres-controls">
+          <div style="display:flex;gap:6px;align-items:center;">
+            <button class="pres-btn ${presente ? 'pres-btn-si active-si' : 'pres-btn-si'}" onclick="setPres(${p.id},${matchId},true,'prow-${p.id}')">
+              <i class="ti ti-check"></i> Présent
+            </button>
+            <button class="pres-btn ${!presente && s ? 'pres-btn-no active-no' : 'pres-btn-no'}" onclick="setPres(${p.id},${matchId},false,'prow-${p.id}')">
+              <i class="ti ti-x"></i> Absent
+            </button>
+            <button class="icon-btn icon-btn-del" onclick="deletePlayer(${p.id},'${p.nome.replace(/'/g, "\\'")}')" title="Supprimer ce joueur (doublon)"><i class="ti ti-trash"></i></button>
+          </div>
+          <div class="stat-inputs" id="stat-inputs-${p.id}" style="${presente ? '' : 'display:none'}">
+            <label>⚽<input type="number" min="0" max="20" value="${s ? (s.gol || 0) : 0}" id="gol-${p.id}" onchange="saveStat(${p.id},${matchId},'gol',this.value)"></label>
+            <label>🅰️<input type="number" min="0" max="20" value="${s ? (s.assist || 0) : 0}" id="assist-${p.id}" onchange="saveStat(${p.id},${matchId},'assist',this.value)"></label>
+            <label>🟨<input type="number" min="0" max="5" value="${s ? (s.gialli || 0) : 0}" id="gialli-${p.id}" onchange="saveStat(${p.id},${matchId},'gialli',this.value)"></label>
+            <label>🟥<input type="number" min="0" max="2" value="${s ? (s.rossi || 0) : 0}" id="rossi-${p.id}" onchange="saveStat(${p.id},${matchId},'rossi',this.value)"></label>
+          </div>
         </div>
       </div>`;
     });
@@ -354,6 +362,23 @@ window.setPres = async function (playerId, matchId, presente, rowId) {
     row.querySelectorAll('.pres-btn').forEach(b => b.classList.remove('active-si', 'active-no'));
     if (presente) row.querySelector('.pres-btn-si').classList.add('active-si');
     else row.querySelector('.pres-btn-no').classList.add('active-no');
+  }
+  // Mostra/nascondi gli input statistiche (gol, assist, cartellini)
+  const inputs = document.getElementById(`stat-inputs-${playerId}`);
+  if (inputs) inputs.style.display = presente ? '' : 'none';
+};
+
+// Salva un singolo dato statistico (gol/assist/gialli/rossi)
+window.saveStat = async function (playerId, matchId, campo, valore) {
+  const val = parseInt(valore) || 0;
+  const existing = await supabase.from("statistiche").select("id").eq("giocatore_id", playerId).eq("match_id", matchId).single();
+  if (existing.data) {
+    await supabase.from("statistiche").update({ [campo]: val }).eq("id", existing.data.id);
+  } else {
+    // crea la riga (segna anche presente, dato che ha statistiche)
+    const base = { giocatore_id: playerId, match_id: parseInt(matchId), presente: true, gol: 0, assist: 0, gialli: 0, rossi: 0 };
+    base[campo] = val;
+    await supabase.from("statistiche").insert(base);
   }
 };
 
