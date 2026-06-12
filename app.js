@@ -74,7 +74,25 @@ function renderMatchSelect() {
     `<option value="${m.id}">${fmtDate(m.data)} — ${m.avversario}</option>`
   ).join('');
   loadAvail();
+  loadAvailPlayers();
 }
+
+// Popola il menu a tendina con i giocatori della rosa
+async function loadAvailPlayers() {
+  const sel = document.getElementById("avail-player-select");
+  if (!sel) return;
+  const { data } = await supabase.from("giocatori").select("nome").eq("attivo", true).eq("tipo", "giocatore").order("nome");
+  let opts = '<option value="">-- Sélectionne ton nom --</option>';
+  (data || []).forEach(p => { opts += `<option value="${p.nome.replace(/"/g, '&quot;')}">${p.nome}</option>`; });
+  opts += '<option value="__autre__">⊕ Je ne suis pas dans la liste</option>';
+  sel.innerHTML = opts;
+}
+
+// Mostra i campi manuali solo se l'utente sceglie "Je ne suis pas dans la liste"
+window.onAvailPlayerChange = function () {
+  const val = document.getElementById("avail-player-select").value;
+  document.getElementById("avail-manual-fields").classList.toggle("section-hidden", val !== "__autre__");
+};
 
 window.loadAvail = async function () {
   const id = document.getElementById("match-select").value;
@@ -89,17 +107,33 @@ window.loadAvail = async function () {
 };
 
 window.submitAvail = async function (ok) {
-  const nome = (document.getElementById("avail-nome").value || '').trim();
-  const cognome = (document.getElementById("avail-cognome").value || '').trim();
   const id = document.getElementById("match-select").value;
-  if (!nome || !cognome || !id) { showMsg('avail-err'); return; }
+  if (!id) { showMsg('avail-err'); return; }
+
+  const selected = document.getElementById("avail-player-select").value;
+  let fullName;
+
+  if (selected && selected !== "__autre__") {
+    // Giocatore già in rosa: usa il nome esatto della lista (niente doppioni)
+    fullName = selected;
+  } else {
+    // Persona non in lista: nome e cognome a mano
+    const nome = (document.getElementById("avail-nome").value || '').trim();
+    const cognome = (document.getElementById("avail-cognome").value || '').trim();
+    if (!nome || !cognome) { showMsg('avail-err'); return; }
+    fullName = nome + ' ' + cognome;
+  }
+
   const { error } = await supabase.from("disponibilita").upsert(
-    { match_id: parseInt(id), nome: nome + ' ' + cognome, disponibile: ok },
+    { match_id: parseInt(id), nome: fullName, disponibile: ok },
     { onConflict: 'match_id,nome' }
   );
   if (error) { console.error(error); return; }
+
   document.getElementById("avail-nome").value = '';
   document.getElementById("avail-cognome").value = '';
+  document.getElementById("avail-player-select").value = '';
+  document.getElementById("avail-manual-fields").classList.add("section-hidden");
   showMsg('avail-success');
   loadAvail();
 };
@@ -192,20 +226,32 @@ async function loadStats() {
     html += '</tbody></table></div>';
     html += '<div style="font-size:11px;color:#888;margin-top:8px;">Le numéro indique le maillot porté ce match-là · ✓ présent sans numéro · ✗ absent</div>';
 
-    // Staff
+    // Staff con presenze
     const { data: staff } = await supabase.from("giocatori").select("*").eq("attivo", true).eq("tipo", "staff").order("ruolo");
     if (staff && staff.length) {
-      html += '<div style="margin-top:18px;"><div class="card-title" style="margin-bottom:10px;"><i class="ti ti-briefcase"></i> Staff</div>';
+      html += '<div style="margin-top:18px;"><div class="card-title" style="margin-bottom:10px;"><i class="ti ti-briefcase"></i> Staff — présences</div>';
       staff.forEach(p => {
         const initials = p.nome.split(' ').map(x => x[0]).join('').toUpperCase();
+        let total = 0;
+        playedMatches.forEach(m => {
+          const s = statMap[`${p.id}_${m.id}`];
+          if (s && s.presente) total++;
+        });
+        const pct = playedMatches.length ? Math.round(total / playedMatches.length * 100) : 0;
         html += `<div class="avail-item">
           <div style="display:flex;align-items:center;gap:10px;flex:1">
             ${p.foto_url
               ? `<img src="${p.foto_url}" class="player-photo-sm" onerror="this.style.display='none'">`
               : `<div class="avatar" style="background:#633806">${initials}</div>`}
-            <div style="font-weight:500">${p.nome}</div>
+            <div>
+              <div style="font-weight:500">${p.nome}</div>
+              <span class="badge badge-gold" style="font-size:10px">${p.ruolo || 'Staff'}</span>
+            </div>
           </div>
-          <span class="badge badge-gold">${p.ruolo || 'Staff'}</span>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:13px;color:#888;">${total}/${playedMatches.length}</span>
+            <span class="badge" style="background:#eaf3de;color:#27500a;">${pct}%</span>
+          </div>
         </div>`;
       });
       html += '</div>';

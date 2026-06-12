@@ -248,6 +248,7 @@ window.loadPresenze = async function () {
   if (!matchId) { wrap.innerHTML = ''; return; }
 
   const { data: players } = await supabase.from("giocatori").select("*").eq("attivo", true).eq("tipo", "giocatore").order("nome");
+  const { data: staff } = await supabase.from("giocatori").select("*").eq("attivo", true).eq("tipo", "staff").order("ruolo");
   const { data: stats } = await supabase.from("statistiche").select("*").eq("match_id", matchId);
   const { data: dispo } = await supabase.from("disponibilita").select("*").eq("match_id", matchId);
 
@@ -308,7 +309,35 @@ window.loadPresenze = async function () {
     html += '</div>';
   }
 
-  // Sezione 2: chi ha dato disponibilità ma NON è tra i giocatori registrati
+  // Sezione STAFF: presenze (senza gol/assist/cartellini)
+  if (staff && staff.length) {
+    html += '<div class="card"><div class="card-title"><i class="ti ti-briefcase"></i> Présences staff</div>';
+    staff.forEach(p => {
+      const s = statMap[p.id];
+      const presente = s && s.presente;
+      const initials = p.nome.split(' ').map(x => x[0]).join('').toUpperCase();
+      html += `<div class="pres-row" id="prow-${p.id}">
+        <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:140px;">
+          ${p.foto_url
+            ? `<img src="${p.foto_url}" class="player-photo-sm" onerror="this.style.display='none'">`
+            : `<div class="avatar" style="background:#633806">${initials}</div>`}
+          <div>
+            <div style="font-size:14px;font-weight:500">${p.nome}</div>
+            <span class="badge badge-gold" style="font-size:10px">${p.ruolo || 'Staff'}</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <button class="pres-btn ${presente ? 'pres-btn-si active-si' : 'pres-btn-si'}" onclick="setPres(${p.id},${matchId},true,'prow-${p.id}')">
+            <i class="ti ti-check"></i> Présent
+          </button>
+          <button class="pres-btn ${!presente && s ? 'pres-btn-no active-no' : 'pres-btn-no'}" onclick="setPres(${p.id},${matchId},false,'prow-${p.id}')">
+            <i class="ti ti-x"></i> Absent
+          </button>
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+  }
   if (dispo && dispo.length) {
     const playerNames = new Set((players || []).map(p => p.nome.toLowerCase().trim()));
     const orphans = dispo.filter(d => !playerNames.has(d.nome.toLowerCase().trim()));

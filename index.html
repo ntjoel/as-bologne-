@@ -50,16 +50,25 @@
           <label class="form-lbl">Seleziona partita</label>
           <select id="match-select" onchange="loadAvail()"><option value="">-- Caricamento... --</option></select>
         </div>
-        <div class="form-grid">
-          <div class="form-row"><label class="form-lbl">Prénom</label><input type="text" id="avail-nome" placeholder="Marco"></div>
-          <div class="form-row"><label class="form-lbl">Nom</label><input type="text" id="avail-cognome" placeholder="Rossi"></div>
+        <div class="form-row">
+          <label class="form-lbl">Ton nom</label>
+          <select id="avail-player-select" onchange="onAvailPlayerChange()">
+            <option value="">-- Sélectionne ton nom --</option>
+          </select>
+        </div>
+        <!-- Campi manuali, visibili solo se "Je ne suis pas dans la liste" -->
+        <div id="avail-manual-fields" class="section-hidden">
+          <div class="form-grid">
+            <div class="form-row"><label class="form-lbl">Prénom</label><input type="text" id="avail-nome" placeholder="Marco"></div>
+            <div class="form-row"><label class="form-lbl">Nom</label><input type="text" id="avail-cognome" placeholder="Rossi"></div>
+          </div>
         </div>
         <div style="display:flex;gap:8px;margin-top:10px;">
           <button class="btn-si" onclick="submitAvail(true)"><i class="ti ti-check"></i> Disponible</button>
           <button class="btn-no" onclick="submitAvail(false)"><i class="ti ti-x"></i> Pas dispo</button>
         </div>
         <div class="success-msg" id="avail-success"><i class="ti ti-check"></i> Réponse enregistrée !</div>
-        <div class="err-msg" id="avail-err">Prénom et nom requis</div>
+        <div class="err-msg" id="avail-err">Sélectionne ou saisis ton nom</div>
       </div>
       <div class="card">
         <div class="card-title"><i class="ti ti-users"></i> Réponses reçues</div>
