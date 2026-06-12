@@ -119,7 +119,7 @@ async function loadStats() {
   const titleEl = document.getElementById("stat-title");
   el.innerHTML = '<div class="empty-msg">Chargement...</div>';
 
-  const { data: players, error: pe } = await supabase.from("giocatori").select("*").eq("attivo", true).order("nome");
+  const { data: players, error: pe } = await supabase.from("giocatori").select("*").eq("attivo", true).eq("tipo", "giocatore").order("nome");
   const { data: matches, error: me } = await supabase.from("matches").select("id, avversario, data, stato").order("data");
 
   if (pe || me || !players || !players.length) {
@@ -176,12 +176,40 @@ async function loadStats() {
         const s = statMap[`${p.id}_${m.id}`];
         const presente = s && s.presente;
         if (presente) total++;
-        html += `<td class="td-pres">${presente ? '<span class="pres-si">✓</span>' : '<span class="pres-no">✗</span>'}</td>`;
+        let cell;
+        if (presente) {
+          cell = s.numero_maglia
+            ? `<span class="pres-maglia">${s.numero_maglia}</span>`
+            : '<span class="pres-si">✓</span>';
+        } else {
+          cell = '<span class="pres-no">✗</span>';
+        }
+        html += `<td class="td-pres">${cell}</td>`;
       });
       const pct = Math.round(total / playedMatches.length * 100);
       html += `<td class="td-total">${total}</td><td class="td-total" style="background:#eaf3de;color:#27500a">${pct}%</td></tr>`;
     });
     html += '</tbody></table></div>';
+    html += '<div style="font-size:11px;color:#888;margin-top:8px;">Le numéro indique le maillot porté ce match-là · ✓ présent sans numéro · ✗ absent</div>';
+
+    // Staff
+    const { data: staff } = await supabase.from("giocatori").select("*").eq("attivo", true).eq("tipo", "staff").order("ruolo");
+    if (staff && staff.length) {
+      html += '<div style="margin-top:18px;"><div class="card-title" style="margin-bottom:10px;"><i class="ti ti-briefcase"></i> Staff</div>';
+      staff.forEach(p => {
+        const initials = p.nome.split(' ').map(x => x[0]).join('').toUpperCase();
+        html += `<div class="avail-item">
+          <div style="display:flex;align-items:center;gap:10px;flex:1">
+            ${p.foto_url
+              ? `<img src="${p.foto_url}" class="player-photo-sm" onerror="this.style.display='none'">`
+              : `<div class="avatar" style="background:#633806">${initials}</div>`}
+            <div style="font-weight:500">${p.nome}</div>
+          </div>
+          <span class="badge badge-gold">${p.ruolo || 'Staff'}</span>
+        </div>`;
+      });
+      html += '</div>';
+    }
   }
 
   // ---------- GOL & ASSIST ----------

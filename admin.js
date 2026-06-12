@@ -50,7 +50,7 @@ async function loadAllData() {
   const [{ count: mc }, { count: dc }, { count: gc }] = await Promise.all([
     supabase.from("matches").select("*", { count: "exact", head: true }),
     supabase.from("disponibilita").select("*", { count: "exact", head: true }),
-    supabase.from("giocatori").select("*", { count: "exact", head: true }),
+    supabase.from("giocatori").select("*", { count: "exact", head: true }).eq("tipo", "giocatore").eq("attivo", true),
   ]);
   document.getElementById("adm-matches").textContent = mc || 0;
   document.getElementById("adm-risposte").textContent = dc || 0;
@@ -247,7 +247,7 @@ window.loadPresenze = async function () {
   const wrap = document.getElementById("presenze-table-wrap");
   if (!matchId) { wrap.innerHTML = ''; return; }
 
-  const { data: players } = await supabase.from("giocatori").select("*").eq("attivo", true).order("nome");
+  const { data: players } = await supabase.from("giocatori").select("*").eq("attivo", true).eq("tipo", "giocatore").order("nome");
   const { data: stats } = await supabase.from("statistiche").select("*").eq("match_id", matchId);
   const { data: dispo } = await supabase.from("disponibilita").select("*").eq("match_id", matchId);
 
@@ -296,6 +296,7 @@ window.loadPresenze = async function () {
             <button class="icon-btn icon-btn-del" onclick="deletePlayer(${p.id},'${p.nome.replace(/'/g, "\\'")}')" title="Supprimer ce joueur (doublon)"><i class="ti ti-trash"></i></button>
           </div>
           <div class="stat-inputs" id="stat-inputs-${p.id}" style="${presente ? '' : 'display:none'}">
+            <label title="Numéro de maillot">👕<input type="number" min="1" max="99" value="${s && s.numero_maglia ? s.numero_maglia : ''}" placeholder="${p.numero || '?'}" id="maglia-${p.id}" onchange="saveStat(${p.id},${matchId},'numero_maglia',this.value)"></label>
             <label>⚽<input type="number" min="0" max="20" value="${s ? (s.gol || 0) : 0}" id="gol-${p.id}" onchange="saveStat(${p.id},${matchId},'gol',this.value)"></label>
             <label>🅰️<input type="number" min="0" max="20" value="${s ? (s.assist || 0) : 0}" id="assist-${p.id}" onchange="saveStat(${p.id},${matchId},'assist',this.value)"></label>
             <label>🟨<input type="number" min="0" max="5" value="${s ? (s.gialli || 0) : 0}" id="gialli-${p.id}" onchange="saveStat(${p.id},${matchId},'gialli',this.value)"></label>
@@ -341,11 +342,11 @@ window.loadPresenze = async function () {
 
 // Aggiunge rapidamente un giocatore che ha dato disponibilità
 window.quickAddPlayer = async function (nome) {
-  const { error } = await supabase.from("giocatori").insert({ nome, posizione: 'M', attivo: true });
+  const { error } = await supabase.from("giocatori").insert({ nome, posizione: 'M', tipo: 'giocatore', attivo: true });
   if (error) { console.error(error); alert("Erreur: " + error.message); return; }
   await loadPresenze();
   await loadPlayerList();
-  const { count } = await supabase.from("giocatori").select("*", { count: "exact", head: true });
+  const { count } = await supabase.from("giocatori").select("*", { count: "exact", head: true }).eq("tipo", "giocatore").eq("attivo", true);
   document.getElementById("adm-giocatori").textContent = count || 0;
 };
 
@@ -385,19 +386,26 @@ window.saveStat = async function (playerId, matchId, campo, valore) {
 // ---- GIOCATORI ----
 async function loadPlayerList() {
   const { data } = await supabase.from("giocatori").select("*").eq("attivo", true).order("nome");
-  const el = document.getElementById("player-list");
-  if (!data || !data.length) { el.innerHTML = '<div class="empty-msg">Nessun giocatore ancora.</div>'; return; }
-  el.innerHTML = data.map(p => {
+  const elP = document.getElementById("player-list");
+  const elS = document.getElementById("staff-list");
+  const all = data || [];
+  const players = all.filter(p => (p.tipo || 'giocatore') === 'giocatore');
+  const staff = all.filter(p => p.tipo === 'staff');
+
+  function rowHtml(p, isStaff) {
     const initials = p.nome.split(' ').map(x => x[0]).join('').toUpperCase();
     const safeName = p.nome.replace(/'/g, "\\'");
+    const subtitle = isStaff
+      ? `<span class="badge badge-gold" style="font-size:10px">${p.ruolo || 'Staff'}</span>`
+      : `<span class="badge badge-navy" style="font-size:10px">${p.posizione || ''}${p.numero ? ' · #' + p.numero : ''}</span>`;
     return `<div class="pres-row" id="player-row-${p.id}">
       <div style="display:flex;align-items:center;gap:10px;flex:1">
         ${p.foto_url
           ? `<img src="${p.foto_url}" class="player-photo-sm" onerror="this.style.display='none'">`
-          : `<div class="avatar">${initials}</div>`}
+          : `<div class="avatar"${isStaff ? ' style="background:#633806"' : ''}>${initials}</div>`}
         <div>
           <div style="font-size:14px;font-weight:500">${p.nome}</div>
-          <span class="badge badge-navy" style="font-size:10px">${p.posizione}${p.numero ? ' · #' + p.numero : ''}</span>
+          ${subtitle}
         </div>
       </div>
       <div style="display:flex;gap:6px;">
@@ -405,18 +413,23 @@ async function loadPlayerList() {
         <button class="icon-btn icon-btn-del" onclick="deletePlayer(${p.id},'${safeName}')" title="Supprimer"><i class="ti ti-trash"></i></button>
       </div>
     </div>`;
-  }).join('');
+  }
+
+  elP.innerHTML = players.length ? players.map(p => rowHtml(p, false)).join('') : '<div class="empty-msg">Nessun giocatore ancora.</div>';
+  if (elS) elS.innerHTML = staff.length ? staff.map(p => rowHtml(p, true)).join('') : '<div class="empty-msg">Nessuno staff ancora.</div>';
 }
 
-// Mostra il form di modifica inline per un giocatore
+// Mostra il form di modifica inline per un giocatore o staff
 window.editPlayer = async function (id) {
   const { data: p } = await supabase.from("giocatori").select("*").eq("id", id).single();
   if (!p) return;
   const row = document.getElementById(`player-row-${id}`);
   if (!row) return;
-  row.innerHTML = `<div style="width:100%">
-    <div class="form-row"><label class="form-lbl">Nom complet</label><input type="text" id="edit-nome-${id}" value="${p.nome.replace(/"/g, '&quot;')}"></div>
-    <div class="form-grid">
+  const isStaff = p.tipo === 'staff';
+
+  const ruoli = ['Entraîneur', 'Entraîneur adjoint', 'Responsable sportif', 'Président', 'Vice-président', 'Responsable médical', 'Kinésithérapeute', 'Préparateur physique', 'Délégué', 'Autre'];
+
+  const giocatoreFields = `<div class="form-grid">
       <div class="form-row">
         <label class="form-lbl">Poste</label>
         <select id="edit-pos-${id}">
@@ -426,8 +439,27 @@ window.editPlayer = async function (id) {
           <option value="A" ${p.posizione === 'A' ? 'selected' : ''}>Attaquant (A)</option>
         </select>
       </div>
-      <div class="form-row"><label class="form-lbl">Numéro</label><input type="number" id="edit-num-${id}" value="${p.numero || ''}" min="1" max="99"></div>
+      <div class="form-row"><label class="form-lbl">Numéro habituel</label><input type="number" id="edit-num-${id}" value="${p.numero || ''}" min="1" max="99"></div>
+    </div>`;
+
+  const staffFields = `<div class="form-row">
+      <label class="form-lbl">Rôle</label>
+      <select id="edit-ruolo-${id}">
+        ${ruoli.map(r => `<option value="${r}" ${p.ruolo === r ? 'selected' : ''}>${r}</option>`).join('')}
+      </select>
+    </div>`;
+
+  row.innerHTML = `<div style="width:100%">
+    <div class="form-row"><label class="form-lbl">Nom complet</label><input type="text" id="edit-nome-${id}" value="${p.nome.replace(/"/g, '&quot;')}"></div>
+    <div class="form-row">
+      <label class="form-lbl">Type</label>
+      <select id="edit-tipo-${id}" onchange="toggleEditTipo(${id})">
+        <option value="giocatore" ${!isStaff ? 'selected' : ''}>Joueur</option>
+        <option value="staff" ${isStaff ? 'selected' : ''}>Staff</option>
+      </select>
     </div>
+    <div id="edit-fields-giocatore-${id}" class="${isStaff ? 'section-hidden' : ''}">${giocatoreFields}</div>
+    <div id="edit-fields-staff-${id}" class="${isStaff ? '' : 'section-hidden'}">${staffFields}</div>
     <div class="form-row"><label class="form-lbl">Changer la photo (optionnel)</label><input type="file" id="edit-photo-${id}" accept="image/*"></div>
     <div style="display:flex;gap:8px;margin-top:8px;">
       <button class="btn-primary" style="flex:1" onclick="savePlayer(${id})"><i class="ti ti-device-floppy"></i> Enregistrer</button>
@@ -436,15 +468,29 @@ window.editPlayer = async function (id) {
   </div>`;
 };
 
-// Salva le modifiche del giocatore
+window.toggleEditTipo = function (id) {
+  const tipo = document.getElementById(`edit-tipo-${id}`).value;
+  document.getElementById(`edit-fields-giocatore-${id}`).classList.toggle('section-hidden', tipo !== 'giocatore');
+  document.getElementById(`edit-fields-staff-${id}`).classList.toggle('section-hidden', tipo !== 'staff');
+};
+
+// Salva le modifiche del giocatore/staff
 window.savePlayer = async function (id) {
   const nome = document.getElementById(`edit-nome-${id}`).value.trim();
-  const pos = document.getElementById(`edit-pos-${id}`).value;
-  const num = document.getElementById(`edit-num-${id}`).value;
+  const tipo = document.getElementById(`edit-tipo-${id}`).value;
   const photoFile = document.getElementById(`edit-photo-${id}`).files[0];
   if (!nome) { alert("Le nom est requis"); return; }
 
-  const updates = { nome, posizione: pos, numero: num ? parseInt(num) : null };
+  const updates = { nome, tipo };
+  if (tipo === 'giocatore') {
+    updates.posizione = document.getElementById(`edit-pos-${id}`).value;
+    const num = document.getElementById(`edit-num-${id}`).value;
+    updates.numero = num ? parseInt(num) : null;
+    updates.ruolo = null;
+  } else {
+    updates.ruolo = document.getElementById(`edit-ruolo-${id}`).value;
+    updates.posizione = null;
+  }
 
   if (photoFile) {
     try {
@@ -477,10 +523,19 @@ window.deletePlayer = async function (id, nome) {
   document.getElementById("adm-giocatori").textContent = count || 0;
 };
 
+// Mostra/nasconde i campi a seconda del tipo (giocatore/staff)
+window.toggleTipoFields = function () {
+  const tipo = document.getElementById("new-player-tipo").value;
+  document.getElementById("fields-giocatore").classList.toggle("section-hidden", tipo !== "giocatore");
+  document.getElementById("fields-staff").classList.toggle("section-hidden", tipo !== "staff");
+};
+
 window.addPlayer = async function () {
   const nome = document.getElementById("new-player-nome").value.trim();
+  const tipo = document.getElementById("new-player-tipo").value;
   const pos = document.getElementById("new-player-pos").value;
   const num = document.getElementById("new-player-num").value;
+  const ruolo = document.getElementById("new-player-ruolo").value;
   const photoFile = document.getElementById("new-player-photo").files[0];
   const errEl = document.getElementById("player-err");
   if (!nome) {
@@ -498,7 +553,6 @@ window.addPlayer = async function () {
       const { error: upErr } = await supabase.storage.from('foto').upload(path, photoFile, { upsert: true });
       if (upErr) {
         console.warn("Foto non caricata (bucket mancante?):", upErr.message);
-        // La foto puo' essere aggiunta dopo - non blocchiamo l'inserimento
       } else {
         foto_url = supabase.storage.from('foto').getPublicUrl(path).data.publicUrl;
       }
@@ -507,12 +561,20 @@ window.addPlayer = async function () {
     }
   }
 
-  // Inserisci il giocatore (con o senza foto)
-  const { error } = await supabase.from("giocatori").insert({
-    nome, posizione: pos, numero: num ? parseInt(num) : null, attivo: true, foto_url
-  });
+  // Costruisci il record a seconda del tipo
+  const record = { nome, tipo, attivo: true, foto_url };
+  if (tipo === 'giocatore') {
+    record.posizione = pos;
+    record.numero = num ? parseInt(num) : null;
+    record.ruolo = null;
+  } else {
+    record.ruolo = ruolo;
+    record.posizione = null;
+  }
+
+  const { error } = await supabase.from("giocatori").insert(record);
   if (error) {
-    console.error("Errore inserimento giocatore:", error);
+    console.error("Errore inserimento:", error);
     errEl.textContent = "Erreur: " + error.message;
     showMsg('player-err');
     return;
@@ -522,7 +584,7 @@ window.addPlayer = async function () {
   document.getElementById("new-player-photo").value = '';
   showMsg('player-success');
   await loadPlayerList();
-  const { count } = await supabase.from("giocatori").select("*", { count: "exact", head: true });
+  const { count } = await supabase.from("giocatori").select("*", { count: "exact", head: true }).eq("tipo", "giocatore").eq("attivo", true);
   document.getElementById("adm-giocatori").textContent = count || 0;
 };
 

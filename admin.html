@@ -104,31 +104,63 @@
     <!-- TAB GIOCATORI -->
     <div id="adm-tab-giocatori" class="section-hidden">
       <div class="card">
-        <div class="card-title"><i class="ti ti-user-plus"></i> Ajouter un joueur</div>
+        <div class="card-title"><i class="ti ti-user-plus"></i> Ajouter une personne</div>
         <div class="form-row"><label class="form-lbl">Nom complet</label><input type="text" id="new-player-nome" placeholder="Marco Rossi"></div>
-        <div class="form-grid">
+        <div class="form-row">
+          <label class="form-lbl">Type</label>
+          <select id="new-player-tipo" onchange="toggleTipoFields()">
+            <option value="giocatore" selected>Joueur</option>
+            <option value="staff">Staff</option>
+          </select>
+        </div>
+        <!-- Campi GIOCATORE -->
+        <div id="fields-giocatore">
+          <div class="form-grid">
+            <div class="form-row">
+              <label class="form-lbl">Poste</label>
+              <select id="new-player-pos">
+                <option value="G">Gardien (G)</option>
+                <option value="D">Défenseur (D)</option>
+                <option value="M" selected>Milieu (M)</option>
+                <option value="A">Attaquant (A)</option>
+              </select>
+            </div>
+            <div class="form-row"><label class="form-lbl">Numéro habituel (optionnel)</label><input type="number" id="new-player-num" placeholder="10" min="1" max="99"></div>
+          </div>
+        </div>
+        <!-- Campi STAFF -->
+        <div id="fields-staff" class="section-hidden">
           <div class="form-row">
-            <label class="form-lbl">Poste</label>
-            <select id="new-player-pos">
-              <option value="G">Gardien (G)</option>
-              <option value="D">Défenseur (D)</option>
-              <option value="M" selected>Milieu (M)</option>
-              <option value="A">Attaquant (A)</option>
+            <label class="form-lbl">Rôle</label>
+            <select id="new-player-ruolo">
+              <option value="Entraîneur">Entraîneur (allenatore)</option>
+              <option value="Entraîneur adjoint">Entraîneur adjoint</option>
+              <option value="Responsable sportif">Responsable sportif</option>
+              <option value="Président">Président</option>
+              <option value="Vice-président">Vice-président</option>
+              <option value="Responsable médical">Responsable médical</option>
+              <option value="Kinésithérapeute">Kinésithérapeute</option>
+              <option value="Préparateur physique">Préparateur physique</option>
+              <option value="Délégué">Délégué</option>
+              <option value="Autre">Autre</option>
             </select>
           </div>
-          <div class="form-row"><label class="form-lbl">Numéro</label><input type="number" id="new-player-num" placeholder="10" min="1" max="99"></div>
         </div>
         <div class="form-row">
-          <label class="form-lbl">Photo du joueur</label>
+          <label class="form-lbl">Photo (optionnel)</label>
           <input type="file" id="new-player-photo" accept="image/*" style="padding:6px;">
         </div>
-        <button class="btn-primary" onclick="addPlayer()"><i class="ti ti-plus"></i> Ajouter joueur</button>
-        <div class="success-msg" id="player-success"><i class="ti ti-check"></i> Joueur ajouté !</div>
+        <button class="btn-primary" onclick="addPlayer()"><i class="ti ti-plus"></i> Ajouter</button>
+        <div class="success-msg" id="player-success"><i class="ti ti-check"></i> Ajouté !</div>
         <div class="err-msg" id="player-err">Erreur lors de l'ajout</div>
       </div>
       <div class="card">
-        <div class="card-title"><i class="ti ti-users"></i> Liste des joueurs</div>
+        <div class="card-title"><i class="ti ti-users"></i> Effectif (joueurs)</div>
         <div id="player-list"><div class="empty-msg">Nessun giocatore ancora.</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="ti ti-briefcase"></i> Staff</div>
+        <div id="staff-list"><div class="empty-msg">Nessuno staff ancora.</div></div>
       </div>
     </div>
 

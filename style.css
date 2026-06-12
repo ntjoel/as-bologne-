@@ -91,6 +91,7 @@ input:focus, select:focus { border-color: #1a2a5e; }
 .player-name { font-weight: bold; font-size: 13px; white-space: nowrap; }
 .pres-si { color: #27500a; font-size: 18px; font-weight: bold; }
 .pres-no { color: #c0001e; font-size: 18px; font-weight: bold; }
+.pres-maglia { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 24px; padding: 0 5px; background: #1a2a5e; color: white; border-radius: 6px; font-size: 12px; font-weight: bold; }
 
 /* PRESENZE ADMIN */
 .pres-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
