@@ -112,6 +112,10 @@ input:focus, select:focus { border-color: #1a2a5e; }
 .icon-btn-del { color: #c0001e; }
 .icon-btn-del:hover { background: #fcebeb; }
 
+/* MATCH ADMIN ROW */
+.match-admin-row { display: flex; align-items: center; gap: 8px; padding: 9px 0; border-bottom: 1px solid #f0f0f0; }
+.match-admin-row:last-child { border-bottom: none; }
+
 /* LOGO PREVIEW */
 .logo-preview { width: 90px; height: 90px; margin: 0 auto; background: white; border-radius: 50%; border: 3px solid #f0c030; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .logo-preview img { width: 100%; height: 100%; object-fit: contain; padding: 6px; }

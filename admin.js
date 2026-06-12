@@ -116,9 +116,12 @@ async function loadAdminMatches() {
     const r = getResult(m);
     const bCls = r === 'V' ? 'badge-win' : r === 'N' ? 'badge-draw' : r === 'D' ? 'badge-loss' : 'badge-up';
     const dt = new Date(m.data + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-    return `<div style="display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid #f0f0f0;">
+    const safeAvv = m.avversario.replace(/'/g, "\\'");
+    return `<div class="match-admin-row" id="match-row-${m.id}">
       <div style="flex:1;font-size:13px;">${dt} — <strong>${m.avversario}</strong> (${m.tipo === 'Casa' ? 'Dom.' : 'Ext.'})</div>
       <span class="badge ${bCls}">${m.risultato || 'À venir'}</span>
+      <button class="icon-btn" onclick="editMatch(${m.id})" title="Modifier"><i class="ti ti-pencil"></i></button>
+      <button class="icon-btn icon-btn-del" onclick="deleteMatch(${m.id},'${safeAvv}')" title="Supprimer"><i class="ti ti-trash"></i></button>
     </div>`;
   }).join('');
   if (sel) sel.innerHTML = data.map(m => {
@@ -133,6 +136,66 @@ function getResult(m) {
   if (m.tipo === 'Casa') return p[0] > p[1] ? 'V' : p[0] === p[1] ? 'N' : 'D';
   return p[1] > p[0] ? 'V' : p[0] === p[1] ? 'N' : 'D';
 }
+
+// Modifica inline di una partita (data, avversario, tipo, orario, campo, risultato)
+window.editMatch = async function (id) {
+  const { data: m } = await supabase.from("matches").select("*").eq("id", id).single();
+  if (!m) return;
+  const row = document.getElementById(`match-row-${id}`);
+  if (!row) return;
+  row.innerHTML = `<div style="width:100%">
+    <div class="form-grid">
+      <div class="form-row"><label class="form-lbl">Date</label><input type="date" id="em-data-${id}" value="${m.data}"></div>
+      <div class="form-row"><label class="form-lbl">Adversaire</label><input type="text" id="em-avv-${id}" value="${m.avversario.replace(/"/g, '&quot;')}"></div>
+    </div>
+    <div class="form-grid">
+      <div class="form-row">
+        <label class="form-lbl">Dom. / Ext.</label>
+        <select id="em-ht-${id}">
+          <option value="Casa" ${m.tipo === 'Casa' ? 'selected' : ''}>Domicile</option>
+          <option value="Trasferta" ${m.tipo === 'Trasferta' ? 'selected' : ''}>Extérieur</option>
+        </select>
+      </div>
+      <div class="form-row"><label class="form-lbl">Heure</label><input type="time" id="em-ora-${id}" value="${m.orario || '15:30'}"></div>
+    </div>
+    <div class="form-grid">
+      <div class="form-row"><label class="form-lbl">Terrain</label><input type="text" id="em-campo-${id}" value="${(m.campo || '').replace(/"/g, '&quot;')}"></div>
+      <div class="form-row"><label class="form-lbl">Score (ex. 2-1, vide si à venir)</label><input type="text" id="em-score-${id}" value="${m.risultato || ''}" placeholder="2-1"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button class="btn-primary" style="flex:1" onclick="saveMatchEdit(${id})"><i class="ti ti-device-floppy"></i> Enregistrer</button>
+      <button class="btn-outline" onclick="loadAdminMatches()"><i class="ti ti-x"></i> Annuler</button>
+    </div>
+  </div>`;
+};
+
+// Salva le modifiche di una partita
+window.saveMatchEdit = async function (id) {
+  const data = document.getElementById(`em-data-${id}`).value;
+  const avv = document.getElementById(`em-avv-${id}`).value.trim();
+  const score = document.getElementById(`em-score-${id}`).value.trim();
+  if (!data || !avv) { alert("Date et adversaire requis"); return; }
+  const { error } = await supabase.from("matches").update({
+    data, avversario: avv,
+    tipo: document.getElementById(`em-ht-${id}`).value,
+    orario: document.getElementById(`em-ora-${id}`).value,
+    campo: document.getElementById(`em-campo-${id}`).value.trim(),
+    risultato: score,
+    stato: score ? 'passata' : 'futura'
+  }).eq("id", id);
+  if (error) { alert("Erreur: " + error.message); return; }
+  await loadAdminMatches();
+};
+
+// Elimina una partita (e le sue presenze/foto associate via CASCADE)
+window.deleteMatch = async function (id, avv) {
+  if (!confirm(`Supprimer le match contre ${avv} ?\n(Les présences et photos liées seront aussi supprimées)`)) return;
+  const { error } = await supabase.from("matches").delete().eq("id", id);
+  if (error) { alert("Erreur: " + error.message); return; }
+  await loadAdminMatches();
+  const { count } = await supabase.from("matches").select("*", { count: "exact", head: true });
+  document.getElementById("adm-matches").textContent = count || 0;
+};
 
 window.addMatch = async function () {
   const data = document.getElementById("new-data").value;
@@ -222,13 +285,14 @@ window.loadPresenze = async function () {
             <span class="badge badge-navy" style="font-size:10px">${p.posizione}</span>
           </div>
         </div>
-        <div style="display:flex;gap:8px;">
+        <div style="display:flex;gap:6px;align-items:center;">
           <button class="pres-btn ${presente ? 'pres-btn-si active-si' : 'pres-btn-si'}" onclick="setPres(${p.id},${matchId},true,'prow-${p.id}')">
             <i class="ti ti-check"></i> Présent
           </button>
           <button class="pres-btn ${!presente && s ? 'pres-btn-no active-no' : 'pres-btn-no'}" onclick="setPres(${p.id},${matchId},false,'prow-${p.id}')">
             <i class="ti ti-x"></i> Absent
           </button>
+          <button class="icon-btn icon-btn-del" onclick="deletePlayer(${p.id},'${p.nome.replace(/'/g, "\\'")}')" title="Supprimer ce joueur (doublon)"><i class="ti ti-trash"></i></button>
         </div>
       </div>`;
     });
@@ -371,11 +435,18 @@ window.savePlayer = async function (id) {
   await loadPlayerList();
 };
 
-// Elimina un giocatore (soft delete: attivo = false)
+// Elimina un giocatore. Se ha statistiche, le rimuove prima, poi elimina del tutto.
 window.deletePlayer = async function (id, nome) {
-  if (!confirm(`Supprimer ${nome} de l'effectif ?`)) return;
-  const { error } = await supabase.from("giocatori").update({ attivo: false }).eq("id", id);
-  if (error) { alert("Erreur: " + error.message); return; }
+  if (!confirm(`Supprimer ${nome} ?`)) return;
+  // Rimuovi prima le statistiche/presenze collegate (per evitare errori di vincolo)
+  await supabase.from("statistiche").delete().eq("giocatore_id", id);
+  const { error } = await supabase.from("giocatori").delete().eq("id", id);
+  if (error) {
+    // Se l'eliminazione totale fallisce, ripiega su disattivazione
+    await supabase.from("giocatori").update({ attivo: false }).eq("id", id);
+  }
+  // Aggiorna la vista attiva
+  if (document.getElementById("presenze-table-wrap").innerHTML.trim()) await loadPresenze();
   await loadPlayerList();
   const { count } = await supabase.from("giocatori").select("*", { count: "exact", head: true }).eq("attivo", true);
   document.getElementById("adm-giocatori").textContent = count || 0;
