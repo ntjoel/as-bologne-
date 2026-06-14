@@ -5,10 +5,17 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 let allMatches = [];
+let availabilityOpen = true;
+let availIdentityConfirmed = false;
+let availPlayers = new Map();
 
 document.addEventListener("DOMContentLoaded", async () => {
   applyStoredLogo();
   await loadMatches();
+  const requestedMatch = parseInt(new URLSearchParams(window.location.search).get("match"));
+  if (requestedMatch && allMatches.some(m => m.id === requestedMatch)) {
+    window.openMatch(requestedMatch);
+  }
 });
 
 // Carica il logo salvato dall'admin e lo applica alla topbar
@@ -34,6 +41,30 @@ function fmtDate(d) {
   return new Date(d + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
+function fmtDeadline(value) {
+  if (!value) return '';
+  return new Date(value).toLocaleString('fr-FR', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+function getSelectedMatch() {
+  const id = parseInt(document.getElementById("match-select")?.value);
+  return allMatches.find(m => m.id === id);
+}
+
+function isAvailabilityOpen(match) {
+  if (!match) return false;
+  const matchDay = new Date(match.data + 'T23:59:59');
+  if (Date.now() > matchDay.getTime()) return false;
+  if (!match.scadenza_disponibilita) return true;
+  return Date.now() <= new Date(match.scadenza_disponibilita).getTime();
+}
+
 function getResult(m) {
   if (!m.risultato) return null;
   const p = m.risultato.split('-').map(Number);
@@ -55,6 +86,7 @@ function renderMatches() {
       <div style="flex:1">
         <div class="match-teams">${m.tipo === 'Casa' ? '🏠' : '✈️'} ${m.avversario}</div>
         <div class="match-detail">${m.orario || ''} · ${m.campo || ''}${m.risultato ? ' · <strong>' + m.risultato + '</strong>' : ''}</div>
+        ${!r && m.scadenza_disponibilita ? `<div class="match-deadline"><i class="ti ti-clock"></i> Répondre avant ${fmtDeadline(m.scadenza_disponibilita)}</div>` : ''}
       </div>
       <span class="badge ${bCls}">${bTxt}</span>
     </div>`;
@@ -69,10 +101,17 @@ function renderMatches() {
 function renderMatchSelect() {
   const sel = document.getElementById("match-select");
   if (!sel) return;
-  if (!allMatches.length) { sel.innerHTML = '<option value="">-- Nessuna partita --</option>'; return; }
-  sel.innerHTML = allMatches.map(m =>
-    `<option value="${m.id}">${fmtDate(m.data)} — ${m.avversario}</option>`
-  ).join('');
+  sel.replaceChildren();
+  if (!allMatches.length) {
+    sel.add(new Option("-- Nessuna partita --", ""));
+    return;
+  }
+  allMatches.forEach(match => {
+    sel.add(new Option(`${fmtDate(match.data)} — ${match.avversario}`, String(match.id)));
+  });
+  const defaultMatch = allMatches.find(match => isAvailabilityOpen(match)) ||
+    allMatches[allMatches.length - 1];
+  sel.value = String(defaultMatch.id);
   loadAvail();
   loadAvailPlayers();
 }
@@ -81,62 +120,221 @@ function renderMatchSelect() {
 async function loadAvailPlayers() {
   const sel = document.getElementById("avail-player-select");
   if (!sel) return;
-  const { data } = await supabase.from("giocatori").select("nome").eq("attivo", true).eq("tipo", "giocatore").order("nome");
-  let opts = '<option value="">-- Sélectionne ton nom --</option>';
-  (data || []).forEach(p => { opts += `<option value="${p.nome.replace(/"/g, '&quot;')}">${p.nome}</option>`; });
-  opts += '<option value="__autre__">⊕ Je ne suis pas dans la liste</option>';
-  sel.innerHTML = opts;
+  const { data } = await supabase.from("giocatori").select("id,nome,foto_url").eq("attivo", true).eq("tipo", "giocatore").order("nome");
+  availPlayers = new Map((data || []).map(p => [String(p.id), p]));
+  sel.replaceChildren();
+  sel.add(new Option("-- Sélectionne ton nom --", ""));
+  (data || []).forEach(player => {
+    const option = new Option(player.nome, String(player.id));
+    option.dataset.name = player.nome;
+    sel.add(option);
+  });
+  sel.add(new Option("⊕ Je ne suis pas dans la liste", "__autre__"));
+}
+
+function resetAvailIdentity(clearSelection = false) {
+  availIdentityConfirmed = false;
+  document.getElementById("avail-identity-check").classList.add("section-hidden");
+  document.getElementById("avail-phone-check").classList.add("section-hidden");
+  document.getElementById("avail-manual-fields").classList.add("section-hidden");
+  document.getElementById("avail-response-actions").classList.add("section-hidden");
+  document.getElementById("avail-phone-last4").value = '';
+  if (clearSelection) document.getElementById("avail-player-select").value = '';
+}
+
+function updateDeadlineBox() {
+  const match = getSelectedMatch();
+  const box = document.getElementById("availability-deadline");
+  const title = document.getElementById("deadline-title");
+  const text = document.getElementById("deadline-text");
+
+  availabilityOpen = isAvailabilityOpen(match);
+  box.classList.toggle("deadline-closed", !availabilityOpen);
+  box.classList.toggle("deadline-open", availabilityOpen);
+
+  if (!match) {
+    title.textContent = "Choisis un match";
+    text.textContent = "";
+  } else if (!availabilityOpen) {
+    title.textContent = "Réponses fermées";
+    text.textContent = match.scadenza_disponibilita
+      ? `La limite était ${fmtDeadline(match.scadenza_disponibilita)}.`
+      : "Le match est déjà passé.";
+  } else if (match.scadenza_disponibilita) {
+    title.textContent = "Réponds avant";
+    text.textContent = fmtDeadline(match.scadenza_disponibilita);
+  } else {
+    title.textContent = "Réponses ouvertes";
+    text.textContent = "Aucune heure limite indiquée.";
+  }
+
+  if (!availabilityOpen) resetAvailIdentity();
 }
 
 // Mostra i campi manuali solo se l'utente sceglie "Je ne suis pas dans la liste"
 window.onAvailPlayerChange = function () {
-  const val = document.getElementById("avail-player-select").value;
-  document.getElementById("avail-manual-fields").classList.toggle("section-hidden", val !== "__autre__");
+  const select = document.getElementById("avail-player-select");
+  const val = select.value;
+  resetAvailIdentity();
+
+  if (!availabilityOpen || !val) return;
+
+  if (val === "__autre__") {
+    document.getElementById("avail-manual-fields").classList.remove("section-hidden");
+    document.getElementById("avail-response-actions").classList.remove("section-hidden");
+    return;
+  }
+
+  const player = availPlayers.get(val);
+  const playerName = player?.nome ||
+    select.options[select.selectedIndex].dataset.name ||
+    select.options[select.selectedIndex].textContent;
+  const photo = document.getElementById("avail-identity-photo");
+  const avatar = document.getElementById("avail-identity-avatar");
+
+  document.getElementById("avail-identity-name").textContent = playerName;
+  photo.alt = playerName;
+  photo.onerror = () => {
+    photo.classList.add("section-hidden");
+    avatar.textContent = playerName.split(/\s+/).map(part => part[0]).join('').slice(0, 3).toUpperCase();
+    avatar.classList.remove("section-hidden");
+  };
+  if (player?.foto_url) {
+    photo.src = player.foto_url;
+    photo.classList.remove("section-hidden");
+    avatar.classList.add("section-hidden");
+  } else {
+    photo.src = "logo.png";
+    photo.classList.add("section-hidden");
+    avatar.textContent = playerName.split(/\s+/).map(part => part[0]).join('').slice(0, 3).toUpperCase();
+    avatar.classList.remove("section-hidden");
+  }
+  document.getElementById("avail-identity-check").classList.remove("section-hidden");
+};
+
+window.confirmAvailIdentity = function (confirmed) {
+  if (!confirmed) {
+    resetAvailIdentity(true);
+    return;
+  }
+
+  availIdentityConfirmed = true;
+  document.getElementById("avail-identity-check").classList.add("section-hidden");
+  document.getElementById("avail-phone-check").classList.remove("section-hidden");
+  document.getElementById("avail-response-actions").classList.remove("section-hidden");
+  document.getElementById("avail-phone-last4").focus();
 };
 
 window.loadAvail = async function () {
   const id = document.getElementById("match-select").value;
   const el = document.getElementById("avail-list");
+  resetAvailIdentity(true);
+  updateDeadlineBox();
   if (!id) { el.innerHTML = '<div class="empty-msg">Sélectionne un match.</div>'; return; }
   const { data } = await supabase.from("disponibilita").select("*").eq("match_id", id).order("nome");
   if (!data || !data.length) { el.innerHTML = '<div class="empty-msg">Aucune réponse pour ce match.</div>'; return; }
   const si = data.filter(a => a.disponibile), no = data.filter(a => !a.disponibile);
-  el.innerHTML =
-    (si.length ? `<div class="divider-label">✅ Disponibles (${si.length})</div>` + si.map(a => `<div class="avail-item"><div style="flex:1">${a.nome}</div><span class="badge badge-win">Oui</span></div>`).join('') : '') +
-    (no.length ? `<div class="divider-label" style="margin-top:10px">❌ Pas disponibles (${no.length})</div>` + no.map(a => `<div class="avail-item"><div style="flex:1">${a.nome}</div><span class="badge badge-loss">Non</span></div>`).join('') : '');
+  el.replaceChildren();
+
+  const appendGroup = (responses, available) => {
+    if (!responses.length) return;
+
+    const divider = document.createElement("div");
+    divider.className = "divider-label";
+    if (!available) divider.style.marginTop = "10px";
+    divider.textContent = `${available ? "✅ Disponibles" : "❌ Pas disponibles"} (${responses.length})`;
+    el.appendChild(divider);
+
+    responses.forEach(response => {
+      const row = document.createElement("div");
+      row.className = "avail-item";
+
+      const name = document.createElement("div");
+      name.style.flex = "1";
+      name.textContent = response.nome;
+
+      const badge = document.createElement("span");
+      badge.className = `badge ${available ? "badge-win" : "badge-loss"}`;
+      badge.textContent = available ? "Oui" : "Non";
+
+      row.append(name, badge);
+      el.appendChild(row);
+    });
+  };
+
+  appendGroup(si, true);
+  appendGroup(no, false);
 };
 
 window.submitAvail = async function (ok) {
   const id = document.getElementById("match-select").value;
-  if (!id) { showMsg('avail-err'); return; }
-
-  const selected = document.getElementById("avail-player-select").value;
-  let fullName;
-
-  if (selected && selected !== "__autre__") {
-    // Giocatore già in rosa: usa il nome esatto della lista (niente doppioni)
-    fullName = selected;
-  } else {
-    // Persona non in lista: nome e cognome a mano
-    const nome = (document.getElementById("avail-nome").value || '').trim();
-    const cognome = (document.getElementById("avail-cognome").value || '').trim();
-    if (!nome || !cognome) { showMsg('avail-err'); return; }
-    fullName = nome + ' ' + cognome;
+  if (!id || !availabilityOpen) {
+    showAvailError(!availabilityOpen ? "Les réponses sont fermées." : "Sélectionne un match.");
+    return;
   }
 
-  const { error } = await supabase.from("disponibilita").upsert(
-    { match_id: parseInt(id), nome: fullName, disponibile: ok },
-    { onConflict: 'match_id,nome' }
-  );
-  if (error) { console.error(error); return; }
+  const selected = document.getElementById("avail-player-select").value;
+  let error;
+
+  if (selected && selected !== "__autre__") {
+    const last4 = document.getElementById("avail-phone-last4").value.replace(/\D/g, '');
+    if (!availIdentityConfirmed) {
+      showAvailError("Confirme d'abord que c'est bien toi.");
+      return;
+    }
+    if (last4.length !== 4) {
+      showAvailError("Écris les 4 derniers chiffres de ton téléphone.");
+      return;
+    }
+
+    ({ error } = await supabase.rpc("registra_disponibilita_giocatore", {
+      p_match_id: parseInt(id),
+      p_giocatore_id: parseInt(selected),
+      p_ultime_cifre: last4,
+      p_disponibile: ok
+    }));
+  } else {
+    const nome = (document.getElementById("avail-nome").value || '').trim();
+    const cognome = (document.getElementById("avail-cognome").value || '').trim();
+    if (!nome || !cognome) {
+      showAvailError("Écris ton prénom et ton nom.");
+      return;
+    }
+
+    ({ error } = await supabase.rpc("registra_disponibilita_ospite", {
+      p_match_id: parseInt(id),
+      p_nome: nome,
+      p_cognome: cognome,
+      p_disponibile: ok
+    }));
+  }
+
+  if (error) {
+    console.error(error);
+    const messages = {
+      RACCOLTA_CHIUSA: "Les réponses sont fermées.",
+      TELEFONO_MANCANTE: "Ton téléphone n'est pas encore enregistré. Appelle le responsable.",
+      VERIFICA_NON_VALIDA: "Ces 4 chiffres ne correspondent pas. Essaie encore.",
+      NOME_GIA_PRESENTE: "Ton nom est dans la liste. Sélectionne-le.",
+      NOME_NON_VALIDO: "Écris ton prénom et ton nom."
+    };
+    const known = Object.keys(messages).find(code => error.message?.includes(code));
+    showAvailError(known ? messages[known] : "Impossible d'enregistrer. Réessaie.");
+    return;
+  }
 
   document.getElementById("avail-nome").value = '';
   document.getElementById("avail-cognome").value = '';
-  document.getElementById("avail-player-select").value = '';
-  document.getElementById("avail-manual-fields").classList.add("section-hidden");
+  resetAvailIdentity(true);
   showMsg('avail-success');
   loadAvail();
 };
+
+function showAvailError(message) {
+  const el = document.getElementById("avail-err");
+  el.textContent = message;
+  showMsg('avail-err');
+}
 
 // ---- STATISTICHE con foto e presenze ----
 let currentStatType = 'presenze';

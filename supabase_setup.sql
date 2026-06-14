@@ -2,6 +2,11 @@
 -- A.S. BOLOGNE — Setup completo Supabase
 -- Copia e incolla tutto nel SQL Editor
 -- =============================================
+-- ATTENZIONE: questo e lo schema storico iniziale.
+-- Le policy di scrittura in fondo al file non sono adatte alla produzione.
+-- Dopo questo file e le migrazioni storiche, applicare anche:
+-- 20260614_disponibilita_whatsapp.sql
+-- seguendo docs/MANUTENZIONE.md.
 
 -- 1. TABELLE
 CREATE TABLE IF NOT EXISTS matches (

@@ -92,6 +92,33 @@ input:focus, select:focus { border-color: #1a2a5e; }
 .avail-item:last-child { border-bottom: none; }
 .divider-label { font-size: 12px; font-weight: bold; color: #888; margin: 8px 0 4px; }
 
+/* DISPONIBILITA SEMPLICE */
+.deadline-box { display: flex; align-items: center; gap: 12px; margin: 4px 0 16px; padding: 13px 14px; border-radius: 12px; font-size: 14px; border: 2px solid transparent; }
+.deadline-box > i { font-size: 26px; flex-shrink: 0; }
+.deadline-box strong { display: block; font-size: 16px; }
+.deadline-box.deadline-open { background: #eaf3de; color: #27500a; border-color: #c0dd97; }
+.deadline-box.deadline-closed { background: #fcebeb; color: #791f1f; border-color: #f09595; }
+.identity-check { margin: 14px 0; padding: 18px; border: 3px solid #f0c030; border-radius: 14px; background: #fff9df; text-align: center; }
+.identity-question { font-size: 18px; font-weight: bold; color: #633806; }
+.identity-photo-wrap { width: 92px; height: 92px; margin: 12px auto 4px; }
+.identity-photo, .identity-avatar { width: 92px; height: 92px; border-radius: 50%; border: 4px solid white; box-shadow: 0 2px 9px rgba(26,42,94,0.22); }
+.identity-photo { object-fit: cover; background: white; }
+.identity-avatar { display: flex; align-items: center; justify-content: center; background: #1a2a5e; color: white; font-family: 'Oswald', Arial, sans-serif; font-size: 30px; font-weight: bold; }
+.identity-name { margin: 8px 0 16px; font-family: 'Oswald', Arial, sans-serif; font-size: 27px; font-weight: 700; color: #1a2a5e; }
+.identity-actions { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; }
+.btn-confirm-person, .btn-not-person { min-height: 54px; padding: 12px; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; }
+.btn-confirm-person { background: #1a7a1a; color: white; border: 2px solid #155f15; }
+.btn-not-person { background: white; color: #791f1f; border: 2px solid #f09595; }
+.phone-check { margin: 14px 0; padding: 15px; border-radius: 12px; background: #eef2fb; border: 2px solid #bfc8e3; }
+.phone-check .form-lbl { color: #1a2a5e; font-size: 15px; font-weight: bold; }
+.phone-check input { font-size: 26px; font-weight: bold; letter-spacing: 8px; text-align: center; min-height: 54px; }
+.simple-help { margin-top: 5px; color: #626b80; font-size: 12px; line-height: 1.4; }
+.checkbox-row { display: flex; align-items: center; gap: 9px; margin: 4px 0 12px; padding: 10px; border-radius: 9px; background: #eef2fb; color: #1a2a5e; font-size: 13px; font-weight: 600; cursor: pointer; }
+.checkbox-row input[type="checkbox"] { width: 22px; height: 22px; flex: 0 0 22px; accent-color: #16883b; }
+.availability-actions { display: flex; gap: 10px; margin-top: 14px; }
+.availability-actions .btn-si, .availability-actions .btn-no { min-height: 66px; font-size: 16px; line-height: 1.25; }
+.match-deadline { margin-top: 4px; color: #633806; font-size: 11px; font-weight: bold; }
+
 .avatar { width: 36px; height: 36px; border-radius: 50%; background: #1a2a5e; color: white; font-size: 12px; font-weight: bold; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .player-photo { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 2px solid #e8ecf7; }
 .player-photo-sm { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid #e8ecf7; flex-shrink: 0; }
@@ -134,10 +161,24 @@ input:focus, select:focus { border-color: #1a2a5e; }
 .icon-btn:hover { background: #e8ecf7; }
 .icon-btn-del { color: #c0001e; }
 .icon-btn-del:hover { background: #fcebeb; }
+.icon-btn-wa { color: #137333; border-color: #9bd4a9; background: #eaf7ed; }
+.icon-btn-wa:hover { background: #d5f0dc; }
 
 /* MATCH ADMIN ROW */
 .match-admin-row { display: flex; align-items: center; gap: 8px; padding: 9px 0; border-bottom: 1px solid #f0f0f0; }
 .match-admin-row:last-child { border-bottom: none; }
+.admin-deadline { margin-top: 4px; color: #633806; font-size: 11px; }
+.deadline-admin-field { padding: 12px; border-radius: 10px; background: #fff9df; border: 1px solid #ead47d; }
+
+/* WHATSAPP ADMIN */
+.whatsapp-panel { border: 2px solid #58b86d; }
+.whatsapp-panel textarea { min-height: 150px; resize: vertical; line-height: 1.4; }
+.btn-whatsapp-main { width: 100%; min-height: 50px; margin: 10px 0 14px; padding: 11px 15px; border: none; border-radius: 10px; background: #16883b; color: white; font-size: 15px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px; }
+.whatsapp-player-row { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 7px 0; border-bottom: 1px solid #edf0f5; }
+.whatsapp-player-name { flex: 1; font-size: 14px; font-weight: 600; }
+.btn-whatsapp-small { min-width: 98px; padding: 8px 10px; border-radius: 8px; background: #16883b; color: white; text-decoration: none; font-size: 13px; font-weight: bold; text-align: center; }
+.player-phone { margin-top: 4px; color: #137333; font-size: 11px; }
+.player-phone.phone-missing { color: #a02323; }
 
 /* STAT INPUTS in presenze admin */
 .pres-row-stats { flex-wrap: wrap; }
@@ -160,4 +201,6 @@ input:focus, select:focus { border-color: #1a2a5e; }
   .form-grid { grid-template-columns: 1fr; }
   .metrics { grid-template-columns: repeat(2, 1fr); }
   .tab-sub-btn { font-size: 12px; padding: 6px 10px; }
+  .identity-actions { grid-template-columns: 1fr; }
+  .match-admin-row { flex-wrap: wrap; }
 }

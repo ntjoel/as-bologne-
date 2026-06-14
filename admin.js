@@ -2,13 +2,14 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = "https://uiypmfkfwcvdujkvsjxp.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpeXBtZmtmd2N2ZHVqa3ZzanhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTE2MTAsImV4cCI6MjA5NjgyNzYxMH0.iPvSXzsXPQRJdXURELrjjWOoi68MV7w9yONbt17VXew";
-const ADMIN_PASSWORD = "admin123+";
-
+const ADMIN_LOGIN_EMAIL = "j.ntiegoun@gmail.com";
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+let whatsappPlayers = [];
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   applyStoredLogo();
-  if (sessionStorage.getItem("asbologne_admin") === "true") showPanel();
+  const { data } = await supabase.auth.getSession();
+  if (data.session) await showPanel();
 });
 
 // Carica il logo salvato e lo applica alla topbar / login
@@ -21,25 +22,47 @@ async function applyStoredLogo() {
   } catch (e) { /* tabella impostazioni non ancora creata, ignora */ }
 }
 
-// ---- AUTH (solo password, no email) ----
-window.adminLogin = function () {
+// ---- AUTH SUPABASE ----
+window.adminLogin = async function () {
   const pw = document.getElementById("admin-pw").value;
-  if (pw === ADMIN_PASSWORD) {
-    sessionStorage.setItem("asbologne_admin", "true");
-    showPanel();
-  } else {
+  const errEl = document.getElementById("login-err");
+
+  if (!pw) {
+    errEl.textContent = "Écris le mot de passe.";
     showMsg('login-err');
+    return;
   }
+
+  const { error } = await supabase.auth.signInWithPassword({
+    email: ADMIN_LOGIN_EMAIL,
+    password: pw
+  });
+  if (error) {
+    errEl.textContent = "Mot de passe incorrect.";
+    showMsg('login-err');
+    return;
+  }
+
+  await showPanel();
 };
 
-window.adminLogout = function () {
-  sessionStorage.removeItem("asbologne_admin");
+window.adminLogout = async function () {
+  await supabase.auth.signOut();
   document.getElementById("admin-area").classList.add("section-hidden");
   document.getElementById("login-area").classList.remove("section-hidden");
   document.getElementById("admin-pw").value = '';
 };
 
 async function showPanel() {
+  const { data: isAdmin, error } = await supabase.rpc("is_admin");
+  if (error || !isAdmin) {
+    await supabase.auth.signOut();
+    const errEl = document.getElementById("login-err");
+    errEl.textContent = "Ce compte n'est pas autorisé.";
+    showMsg('login-err');
+    return;
+  }
+
   document.getElementById("login-area").classList.add("section-hidden");
   document.getElementById("admin-area").classList.remove("section-hidden");
   await loadAllData();
@@ -103,6 +126,42 @@ window.uploadLogo = async function () {
 };
 
 // ---- MATCHES ----
+function toDateTimeLocal(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function deadlineToIso(value) {
+  return value ? new Date(value).toISOString() : null;
+}
+
+function isDeadlineBeforeMatch(matchDate, matchTime, deadline) {
+  if (!matchDate || !deadline) return false;
+  const matchMoment = new Date(`${matchDate}T${matchTime || '23:59'}:00`);
+  return new Date(deadline).getTime() < matchMoment.getTime();
+}
+
+function fmtDeadline(value) {
+  if (!value) return "Aucune limite";
+  return new Date(value).toLocaleString('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+window.setDefaultDeadline = function () {
+  const matchDate = document.getElementById("new-data").value;
+  const deadlineInput = document.getElementById("new-scadenza");
+  if (!matchDate || deadlineInput.value) return;
+  const d = new Date(matchDate + 'T18:00:00');
+  d.setDate(d.getDate() - 1);
+  deadlineInput.value = toDateTimeLocal(d);
+};
+
 async function loadAdminMatches() {
   const { data } = await supabase.from("matches").select("*").order("data", { ascending: false });
   const el = document.getElementById("admin-match-list");
@@ -118,8 +177,12 @@ async function loadAdminMatches() {
     const dt = new Date(m.data + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
     const safeAvv = m.avversario.replace(/'/g, "\\'");
     return `<div class="match-admin-row" id="match-row-${m.id}">
-      <div style="flex:1;font-size:13px;">${dt} — <strong>${m.avversario}</strong> (${m.tipo === 'Casa' ? 'Dom.' : 'Ext.'})</div>
+      <div style="flex:1;font-size:13px;">
+        ${dt} — <strong>${m.avversario}</strong> (${m.tipo === 'Casa' ? 'Dom.' : 'Ext.'})
+        <div class="admin-deadline"><i class="ti ti-clock"></i> Réponses: ${fmtDeadline(m.scadenza_disponibilita)}</div>
+      </div>
       <span class="badge ${bCls}">${m.risultato || 'À venir'}</span>
+      <button class="icon-btn icon-btn-wa" onclick="showWhatsAppPanel(${m.id})" title="Prévenir sur WhatsApp"><i class="ti ti-brand-whatsapp"></i></button>
       <button class="icon-btn" onclick="editMatch(${m.id})" title="Modifier"><i class="ti ti-pencil"></i></button>
       <button class="icon-btn icon-btn-del" onclick="deleteMatch(${m.id},'${safeAvv}')" title="Supprimer"><i class="ti ti-trash"></i></button>
     </div>`;
@@ -162,6 +225,11 @@ window.editMatch = async function (id) {
       <div class="form-row"><label class="form-lbl">Terrain</label><input type="text" id="em-campo-${id}" value="${(m.campo || '').replace(/"/g, '&quot;')}"></div>
       <div class="form-row"><label class="form-lbl">Score (ex. 2-1, vide si à venir)</label><input type="text" id="em-score-${id}" value="${m.risultato || ''}" placeholder="2-1"></div>
     </div>
+    <div class="form-row deadline-admin-field">
+      <label class="form-lbl">Fin des réponses</label>
+      <input type="datetime-local" id="em-scadenza-${id}" value="${toDateTimeLocal(m.scadenza_disponibilita)}">
+      <div class="simple-help">Après cette heure, les réponses sont bloquées.</div>
+    </div>
     <div style="display:flex;gap:8px;margin-top:8px;">
       <button class="btn-primary" style="flex:1" onclick="saveMatchEdit(${id})"><i class="ti ti-device-floppy"></i> Enregistrer</button>
       <button class="btn-outline" onclick="loadAdminMatches()"><i class="ti ti-x"></i> Annuler</button>
@@ -174,12 +242,22 @@ window.saveMatchEdit = async function (id) {
   const data = document.getElementById(`em-data-${id}`).value;
   const avv = document.getElementById(`em-avv-${id}`).value.trim();
   const score = document.getElementById(`em-score-${id}`).value.trim();
-  if (!data || !avv) { alert("Date et adversaire requis"); return; }
+  const scadenza = document.getElementById(`em-scadenza-${id}`).value;
+  if (!data || !avv || (!score && !scadenza)) {
+    alert("Date, adversaire et fin des réponses requis");
+    return;
+  }
+  const matchTime = document.getElementById(`em-ora-${id}`).value;
+  if (scadenza && !isDeadlineBeforeMatch(data, matchTime, scadenza)) {
+    alert("La fin des réponses doit être avant le match.");
+    return;
+  }
   const { error } = await supabase.from("matches").update({
     data, avversario: avv,
     tipo: document.getElementById(`em-ht-${id}`).value,
-    orario: document.getElementById(`em-ora-${id}`).value,
+    orario: matchTime,
     campo: document.getElementById(`em-campo-${id}`).value.trim(),
+    scadenza_disponibilita: deadlineToIso(scadenza),
     risultato: score,
     stato: score ? 'passata' : 'futura'
   }).eq("id", id);
@@ -200,22 +278,158 @@ window.deleteMatch = async function (id, avv) {
 window.addMatch = async function () {
   const data = document.getElementById("new-data").value;
   const avv = document.getElementById("new-avv").value.trim();
-  if (!data || !avv) { showMsg('match-err'); return; }
-  const { error } = await supabase.from("matches").insert({
+  const scadenza = document.getElementById("new-scadenza").value;
+  if (!data || !avv || !scadenza) { showMsg('match-err'); return; }
+  const matchTime = document.getElementById("new-ora").value;
+  if (!isDeadlineBeforeMatch(data, matchTime, scadenza)) {
+    document.getElementById("match-err").textContent = "La fin des réponses doit être avant le match.";
+    showMsg('match-err');
+    return;
+  }
+  const { data: created, error } = await supabase.from("matches").insert({
     data, avversario: avv,
     tipo: document.getElementById("new-ht").value,
-    orario: document.getElementById("new-ora").value,
+    orario: matchTime,
     campo: document.getElementById("new-campo").value.trim(),
+    scadenza_disponibilita: deadlineToIso(scadenza),
     risultato: '', stato: 'futura'
-  });
-  if (error) { console.error(error); return; }
+  }).select("*").single();
+  if (error) {
+    console.error(error);
+    document.getElementById("match-err").textContent = "Erreur: " + error.message;
+    showMsg('match-err');
+    return;
+  }
   document.getElementById("new-data").value = '';
   document.getElementById("new-avv").value = '';
   document.getElementById("new-campo").value = '';
+  document.getElementById("new-scadenza").value = '';
   showMsg('match-success');
   await loadAdminMatches();
   const { count } = await supabase.from("matches").select("*", { count: "exact", head: true });
   document.getElementById("adm-matches").textContent = count || 0;
+  await showWhatsAppPanel(created.id);
+};
+
+function buildWhatsAppMessage(match) {
+  const date = new Date(match.data + 'T00:00:00').toLocaleDateString('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long'
+  });
+  const lieu = match.campo ? `\nLieu: ${match.campo}` : '';
+  const limite = match.scadenza_disponibilita
+    ? `\nRépondre avant: ${fmtDeadline(match.scadenza_disponibilita)}`
+    : '';
+  const link = `https://project-zxasn.vercel.app/?match=${match.id}`;
+
+  return `Nouveau match A.S. Bologne
+
+Adversaire: ${match.avversario}
+Date: ${date}
+Heure: ${match.orario || '-'}
+${match.tipo === 'Casa' ? 'À domicile' : 'À l’extérieur'}${lieu}${limite}
+
+Clique ici pour répondre:
+${link}`;
+}
+
+function normalizeWhatsAppPhone(phone) {
+  const raw = (phone || '').trim();
+  let digits = raw.replace(/\D/g, '');
+  if (raw.startsWith('00')) digits = digits.slice(2);
+  return digits;
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, character => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[character]);
+}
+
+window.showWhatsAppPanel = async function (matchId) {
+  const [{ data: match, error: matchError }, { data: players, error: playerError }] = await Promise.all([
+    supabase.from("matches").select("*").eq("id", matchId).single(),
+    supabase.from("giocatori").select("id,nome").eq("attivo", true).eq("tipo", "giocatore").order("nome")
+  ]);
+
+  if (matchError || playerError || !match) {
+    alert("Impossible de préparer le message WhatsApp.");
+    return;
+  }
+
+  const ids = (players || []).map(p => p.id);
+  let contacts = [];
+  if (ids.length) {
+    const { data, error } = await supabase
+      .from("contatti_giocatori")
+      .select("giocatore_id,telefono,whatsapp_attivo")
+      .in("giocatore_id", ids);
+    if (error) {
+      alert("Impossible de lire les téléphones: " + error.message);
+      return;
+    }
+    contacts = data || [];
+  }
+
+  const contactMap = Object.fromEntries(contacts.map(c => [c.giocatore_id, c]));
+  whatsappPlayers = (players || []).map(p => ({ ...p, contact: contactMap[p.id] || null }));
+  document.getElementById("whatsapp-message").value = buildWhatsAppMessage(match);
+  document.getElementById("whatsapp-panel").classList.remove("section-hidden");
+  refreshWhatsAppLinks();
+  document.getElementById("whatsapp-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+};
+
+window.refreshWhatsAppLinks = function () {
+  const list = document.getElementById("whatsapp-player-list");
+  const message = document.getElementById("whatsapp-message").value;
+  list.innerHTML = '';
+
+  whatsappPlayers.forEach(player => {
+    const row = document.createElement("div");
+    row.className = "whatsapp-player-row";
+
+    const name = document.createElement("div");
+    name.className = "whatsapp-player-name";
+    name.textContent = player.nome;
+    row.appendChild(name);
+
+    const phone = normalizeWhatsAppPhone(player.contact?.telefono);
+    if (!phone || player.contact?.whatsapp_attivo === false) {
+      const missing = document.createElement("span");
+      missing.className = "badge badge-loss";
+      missing.textContent = phone ? "WhatsApp désactivé" : "Téléphone manquant";
+      row.appendChild(missing);
+    } else {
+      const link = document.createElement("a");
+      link.className = "btn-whatsapp-small";
+      link.href = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.innerHTML = '<i class="ti ti-brand-whatsapp"></i> Envoyer';
+      row.appendChild(link);
+    }
+
+    list.appendChild(row);
+  });
+
+  if (!whatsappPlayers.length) {
+    list.innerHTML = '<div class="empty-msg">Aucun joueur actif.</div>';
+  }
+};
+
+window.shareWhatsAppMessage = function () {
+  const message = document.getElementById("whatsapp-message").value;
+  window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank", "noopener");
+};
+
+window.closeWhatsAppPanel = function () {
+  document.getElementById("whatsapp-panel").classList.add("section-hidden");
+  whatsappPlayers = [];
 };
 
 window.saveResult = async function () {
@@ -413,33 +627,55 @@ window.saveStat = async function (playerId, matchId, campo, valore) {
 };
 
 // ---- GIOCATORI ----
+function isValidPhone(phone) {
+  return normalizeWhatsAppPhone(phone).length >= 8;
+}
+
+async function savePlayerContact(playerId, phone, whatsappEnabled = true) {
+  const { error } = await supabase.from("contatti_giocatori").upsert({
+    giocatore_id: playerId,
+    telefono: phone.trim(),
+    whatsapp_attivo: whatsappEnabled,
+    updated_at: new Date().toISOString()
+  }, { onConflict: "giocatore_id" });
+  return error;
+}
+
 async function loadPlayerList() {
-  const { data } = await supabase.from("giocatori").select("*").eq("attivo", true).order("nome");
+  const [{ data }, { data: contacts }] = await Promise.all([
+    supabase.from("giocatori").select("*").eq("attivo", true).order("nome"),
+    supabase.from("contatti_giocatori").select("giocatore_id,telefono,whatsapp_attivo")
+  ]);
   const elP = document.getElementById("player-list");
   const elS = document.getElementById("staff-list");
   const all = data || [];
+  const contactMap = Object.fromEntries((contacts || []).map(c => [c.giocatore_id, c]));
   const players = all.filter(p => (p.tipo || 'giocatore') === 'giocatore');
   const staff = all.filter(p => p.tipo === 'staff');
 
   function rowHtml(p, isStaff) {
-    const initials = p.nome.split(' ').map(x => x[0]).join('').toUpperCase();
-    const safeName = p.nome.replace(/'/g, "\\'");
+    const initials = escapeHtml(p.nome.split(' ').map(x => x[0]).join('').toUpperCase());
+    const contact = contactMap[p.id];
     const subtitle = isStaff
-      ? `<span class="badge badge-gold" style="font-size:10px">${p.ruolo || 'Staff'}</span>`
-      : `<span class="badge badge-navy" style="font-size:10px">${p.posizione || ''}${p.numero ? ' · #' + p.numero : ''}</span>`;
+      ? `<span class="badge badge-gold" style="font-size:10px">${escapeHtml(p.ruolo || 'Staff')}</span>`
+      : `<span class="badge badge-navy" style="font-size:10px">${escapeHtml(p.posizione || '')}${p.numero ? ' · #' + p.numero : ''}</span>`;
+    const phoneLine = !isStaff
+      ? `<div class="player-phone ${contact?.telefono && contact?.whatsapp_attivo !== false ? '' : 'phone-missing'}"><i class="ti ti-brand-whatsapp"></i> ${escapeHtml(contact?.telefono || 'Téléphone manquant')}${contact?.telefono && contact?.whatsapp_attivo === false ? ' · messages refusés' : ''}</div>`
+      : '';
     return `<div class="pres-row" id="player-row-${p.id}">
       <div style="display:flex;align-items:center;gap:10px;flex:1">
         ${p.foto_url
-          ? `<img src="${p.foto_url}" class="player-photo-sm" onerror="this.style.display='none'">`
+          ? `<img src="${escapeHtml(p.foto_url)}" class="player-photo-sm" onerror="this.style.display='none'">`
           : `<div class="avatar"${isStaff ? ' style="background:#633806"' : ''}>${initials}</div>`}
         <div>
-          <div style="font-size:14px;font-weight:500">${p.nome}</div>
+          <div style="font-size:14px;font-weight:500">${escapeHtml(p.nome)}</div>
           ${subtitle}
+          ${phoneLine}
         </div>
       </div>
       <div style="display:flex;gap:6px;">
         <button class="icon-btn" onclick="editPlayer(${p.id})" title="Modifier"><i class="ti ti-pencil"></i></button>
-        <button class="icon-btn icon-btn-del" onclick="deletePlayer(${p.id},'${safeName}')" title="Supprimer"><i class="ti ti-trash"></i></button>
+        <button class="icon-btn icon-btn-del" data-name="${escapeHtml(p.nome)}" onclick="deletePlayer(${p.id},this.dataset.name)" title="Supprimer"><i class="ti ti-trash"></i></button>
       </div>
     </div>`;
   }
@@ -450,7 +686,10 @@ async function loadPlayerList() {
 
 // Mostra il form di modifica inline per un giocatore o staff
 window.editPlayer = async function (id) {
-  const { data: p } = await supabase.from("giocatori").select("*").eq("id", id).single();
+  const [{ data: p }, { data: contact }] = await Promise.all([
+    supabase.from("giocatori").select("*").eq("id", id).single(),
+    supabase.from("contatti_giocatori").select("telefono,whatsapp_attivo").eq("giocatore_id", id).maybeSingle()
+  ]);
   if (!p) return;
   const row = document.getElementById(`player-row-${id}`);
   if (!row) return;
@@ -469,7 +708,16 @@ window.editPlayer = async function (id) {
         </select>
       </div>
       <div class="form-row"><label class="form-lbl">Numéro habituel</label><input type="number" id="edit-num-${id}" value="${p.numero || ''}" min="1" max="99"></div>
-    </div>`;
+    </div>
+    <div class="form-row">
+      <label class="form-lbl">Téléphone WhatsApp</label>
+      <input type="tel" id="edit-phone-${id}" inputmode="tel" value="${(contact?.telefono || '').replace(/"/g, '&quot;')}" placeholder="+33 6 12 34 56 78">
+      <div class="simple-help">Nécessaire pour vérifier la réponse et envoyer le message.</div>
+    </div>
+    <label class="checkbox-row">
+      <input type="checkbox" id="edit-wa-${id}" ${contact?.whatsapp_attivo === false ? '' : 'checked'}>
+      <span>Le joueur accepte les messages WhatsApp du club</span>
+    </label>`;
 
   const staffFields = `<div class="form-row">
       <label class="form-lbl">Rôle</label>
@@ -514,6 +762,11 @@ window.savePlayer = async function (id) {
   if (tipo === 'giocatore') {
     updates.posizione = document.getElementById(`edit-pos-${id}`).value;
     const num = document.getElementById(`edit-num-${id}`).value;
+    const phone = document.getElementById(`edit-phone-${id}`).value.trim();
+    if (!isValidPhone(phone)) {
+      alert("Écris un téléphone complet avec le code du pays.");
+      return;
+    }
     updates.numero = num ? parseInt(num) : null;
     updates.ruolo = null;
   } else {
@@ -532,6 +785,19 @@ window.savePlayer = async function (id) {
 
   const { error } = await supabase.from("giocatori").update(updates).eq("id", id);
   if (error) { alert("Erreur: " + error.message); return; }
+
+  if (tipo === 'giocatore') {
+    const phone = document.getElementById(`edit-phone-${id}`).value.trim();
+    const whatsappEnabled = document.getElementById(`edit-wa-${id}`).checked;
+    const contactError = await savePlayerContact(id, phone, whatsappEnabled);
+    if (contactError) {
+      alert("Joueur enregistré, mais téléphone non enregistré: " + contactError.message);
+      return;
+    }
+  } else {
+    await supabase.from("contatti_giocatori").delete().eq("giocatore_id", id);
+  }
+
   await loadPlayerList();
 };
 
@@ -564,11 +830,18 @@ window.addPlayer = async function () {
   const tipo = document.getElementById("new-player-tipo").value;
   const pos = document.getElementById("new-player-pos").value;
   const num = document.getElementById("new-player-num").value;
+  const phone = document.getElementById("new-player-phone").value.trim();
+  const whatsappEnabled = document.getElementById("new-player-wa").checked;
   const ruolo = document.getElementById("new-player-ruolo").value;
   const photoFile = document.getElementById("new-player-photo").files[0];
   const errEl = document.getElementById("player-err");
   if (!nome) {
     errEl.textContent = "Le nom est requis";
+    showMsg('player-err');
+    return;
+  }
+  if (tipo === 'giocatore' && !isValidPhone(phone)) {
+    errEl.textContent = "Écris un téléphone complet avec le code du pays.";
     showMsg('player-err');
     return;
   }
@@ -601,15 +874,28 @@ window.addPlayer = async function () {
     record.posizione = null;
   }
 
-  const { error } = await supabase.from("giocatori").insert(record);
+  const { data: created, error } = await supabase.from("giocatori").insert(record).select("id").single();
   if (error) {
     console.error("Errore inserimento:", error);
     errEl.textContent = "Erreur: " + error.message;
     showMsg('player-err');
     return;
   }
+
+  if (tipo === 'giocatore') {
+    const contactError = await savePlayerContact(created.id, phone, whatsappEnabled);
+    if (contactError) {
+      await supabase.from("giocatori").delete().eq("id", created.id);
+      errEl.textContent = "Téléphone non enregistré: " + contactError.message;
+      showMsg('player-err');
+      return;
+    }
+  }
+
   document.getElementById("new-player-nome").value = '';
   document.getElementById("new-player-num").value = '';
+  document.getElementById("new-player-phone").value = '';
+  document.getElementById("new-player-wa").checked = true;
   document.getElementById("new-player-photo").value = '';
   showMsg('player-success');
   await loadPlayerList();

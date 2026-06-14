@@ -50,11 +50,47 @@
           <label class="form-lbl">Seleziona partita</label>
           <select id="match-select" onchange="loadAvail()"><option value="">-- Caricamento... --</option></select>
         </div>
+        <div id="availability-deadline" class="deadline-box">
+          <i class="ti ti-clock"></i>
+          <div>
+            <strong id="deadline-title">Caricamento...</strong>
+            <div id="deadline-text"></div>
+          </div>
+        </div>
         <div class="form-row">
           <label class="form-lbl">Ton nom</label>
           <select id="avail-player-select" onchange="onAvailPlayerChange()">
             <option value="">-- Sélectionne ton nom --</option>
           </select>
+        </div>
+        <div id="avail-identity-check" class="identity-check section-hidden">
+          <div class="identity-question">C'est bien toi ?</div>
+          <div class="identity-photo-wrap">
+            <img id="avail-identity-photo" class="identity-photo section-hidden" src="logo.png" alt="">
+            <div id="avail-identity-avatar" class="identity-avatar"></div>
+          </div>
+          <div class="identity-name" id="avail-identity-name"></div>
+          <div class="identity-actions">
+            <button class="btn-confirm-person" onclick="confirmAvailIdentity(true)">
+              <i class="ti ti-user-check"></i> Oui, c'est moi
+            </button>
+            <button class="btn-not-person" onclick="confirmAvailIdentity(false)">
+              <i class="ti ti-user-x"></i> Non
+            </button>
+          </div>
+        </div>
+        <div id="avail-phone-check" class="phone-check section-hidden">
+          <label class="form-lbl" for="avail-phone-last4">Les 4 derniers chiffres de ton téléphone</label>
+          <input
+            type="tel"
+            id="avail-phone-last4"
+            inputmode="numeric"
+            autocomplete="off"
+            maxlength="4"
+            pattern="[0-9]{4}"
+            placeholder="1234"
+          >
+          <div class="simple-help">Seulement 4 chiffres pour vérifier que c'est bien toi.</div>
         </div>
         <!-- Campi manuali, visibili solo se "Je ne suis pas dans la liste" -->
         <div id="avail-manual-fields" class="section-hidden">
@@ -63,12 +99,12 @@
             <div class="form-row"><label class="form-lbl">Nom</label><input type="text" id="avail-cognome" placeholder="Rossi"></div>
           </div>
         </div>
-        <div style="display:flex;gap:8px;margin-top:10px;">
-          <button class="btn-si" onclick="submitAvail(true)"><i class="ti ti-check"></i> Disponible</button>
-          <button class="btn-no" onclick="submitAvail(false)"><i class="ti ti-x"></i> Pas dispo</button>
+        <div id="avail-response-actions" class="availability-actions section-hidden">
+          <button class="btn-si" onclick="submitAvail(true)"><i class="ti ti-check"></i> OUI<br>Disponible</button>
+          <button class="btn-no" onclick="submitAvail(false)"><i class="ti ti-x"></i> NON<br>Pas dispo</button>
         </div>
         <div class="success-msg" id="avail-success"><i class="ti ti-check"></i> Réponse enregistrée !</div>
-        <div class="err-msg" id="avail-err">Sélectionne ou saisis ton nom</div>
+        <div class="err-msg" id="avail-err">Sélectionne ton nom.</div>
       </div>
       <div class="card">
         <div class="card-title"><i class="ti ti-users"></i> Réponses reçues</div>
