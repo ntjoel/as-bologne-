@@ -93,8 +93,18 @@ quella partita. Il segno di spunta indica una presenza senza numero registrato.
 
 ### Foto
 
-La scheda `Photos` raggruppa le immagini per partita. Al momento le fotografie
-sono pubbliche e vengono mostrate nella dimensione originale.
+La scheda `Photos` raggruppa le immagini per partita.
+
+Per vedere meglio una foto:
+
+1. toccare o cliccare la miniatura;
+2. usare `+` e `-` per zoomare;
+3. usare `100%` per tornare alla dimensione normale;
+4. usare `Telecharger` per scaricare la foto;
+5. premere `X` o il tasto `Esc` per chiudere.
+
+Le fotografie sono pubbliche. Il download puo aprire la foto in una nuova
+scheda se il browser blocca il salvataggio diretto.
 
 ## Pannello amministrativo
 

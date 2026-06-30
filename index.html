@@ -142,6 +142,30 @@
 
   </div>
 
+  <div id="photo-viewer" class="photo-viewer section-hidden" role="dialog" aria-modal="true" aria-label="Photo agrandie">
+    <div class="photo-viewer-toolbar">
+      <button type="button" class="photo-viewer-btn" onclick="zoomGalleryPhoto(-0.25)" aria-label="Reduire">
+        <i class="ti ti-zoom-out"></i>
+      </button>
+      <button type="button" class="photo-viewer-btn" onclick="resetGalleryZoom()" aria-label="Taille normale">
+        100%
+      </button>
+      <button type="button" class="photo-viewer-btn" onclick="zoomGalleryPhoto(0.25)" aria-label="Zoomer">
+        <i class="ti ti-zoom-in"></i>
+      </button>
+      <button type="button" class="photo-viewer-btn photo-viewer-download" onclick="downloadGalleryPhoto()" aria-label="Telecharger">
+        <i class="ti ti-download"></i> Telecharger
+      </button>
+      <button type="button" class="photo-viewer-btn" onclick="closeGalleryPhoto()" aria-label="Fermer">
+        <i class="ti ti-x"></i>
+      </button>
+    </div>
+    <div class="photo-viewer-stage" onclick="closeGalleryPhoto()">
+      <img id="photo-viewer-img" src="" alt="" onclick="stopPhotoViewerClick(event)">
+    </div>
+    <div id="photo-viewer-caption" class="photo-viewer-caption"></div>
+  </div>
+
   <script type="module" src="app.js"></script>
 </body>
 </html>

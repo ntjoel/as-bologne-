@@ -8,6 +8,9 @@ let allMatches = [];
 let availabilityOpen = true;
 let availIdentityConfirmed = false;
 let availPlayers = new Map();
+let galleryPhotos = [];
+let currentGalleryPhotoIndex = null;
+let currentGalleryZoom = 1;
 
 document.addEventListener("DOMContentLoaded", async () => {
   applyStoredLogo();
@@ -16,6 +19,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (requestedMatch && allMatches.some(m => m.id === requestedMatch)) {
     window.openMatch(requestedMatch);
   }
+});
+
+document.addEventListener("keydown", event => {
+  if (document.getElementById("photo-viewer")?.classList.contains("section-hidden")) return;
+  if (event.key === "Escape") window.closeGalleryPhoto();
+  if (event.key === "+" || event.key === "=") window.zoomGalleryPhoto(0.25);
+  if (event.key === "-") window.zoomGalleryPhoto(-0.25);
 });
 
 // Carica il logo salvato dall'admin e lo applica alla topbar
@@ -50,6 +60,16 @@ function fmtDeadline(value) {
     hour: '2-digit',
     minute: '2-digit'
   });
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, character => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[character]);
 }
 
 function getSelectedMatch() {
@@ -517,6 +537,7 @@ async function loadGalleria() {
   const el = document.getElementById("galleria-content");
   const { data: matches } = await supabase.from("matches").select("id, avversario, data").order("data", { ascending: false });
   const { data: foto } = await supabase.from("foto").select("*").order("created_at", { ascending: false });
+  galleryPhotos = [];
 
   if (!foto || !foto.length) {
     el.innerHTML = '<div class="empty-msg" style="padding:30px 0">Nessuna foto ancora.</div>';
@@ -536,18 +557,110 @@ async function loadGalleria() {
   Object.keys(byMatch).forEach(mid => {
     const m = matchMap[mid];
     const label = m ? `${m.avversario} — ${fmtDate(m.data)}` : 'Match';
+    const safeLabel = escapeHtml(label);
     html += `<div class="card">
-      <div class="card-title"><i class="ti ti-photo"></i> ${label}</div>
+      <div class="card-title"><i class="ti ti-photo"></i> ${safeLabel}</div>
       <div class="photo-grid">`;
     byMatch[mid].forEach(f => {
-      html += `<div class="photo-thumb">
-        <img src="${f.url}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" onerror="this.parentElement.innerHTML='<i class=ti ti-photo style=font-size:24px></i>'">
-      </div>`;
+      const caption = f.didascalia || label;
+      const photoIndex = galleryPhotos.push({ url: f.url, caption, label }) - 1;
+      const safeUrl = escapeHtml(f.url);
+      const safeAlt = escapeHtml(caption);
+      html += `<button type="button" class="photo-thumb" onclick="openGalleryPhoto(${photoIndex})" aria-label="Voir la photo en grand">
+        <img src="${safeUrl}" alt="${safeAlt}" loading="lazy" onerror="this.classList.add('section-hidden');this.nextElementSibling.classList.remove('section-hidden');">
+        <i class="ti ti-photo photo-fallback section-hidden"></i>
+        <span class="photo-thumb-action"><i class="ti ti-zoom-in"></i></span>
+      </button>`;
     });
     html += `</div></div>`;
   });
   el.innerHTML = html;
 }
+
+function applyGalleryZoom() {
+  const img = document.getElementById("photo-viewer-img");
+  if (!img) return;
+  img.style.transform = `scale(${currentGalleryZoom})`;
+}
+
+function galleryDownloadName(photo) {
+  const base = (photo?.label || 'as-bologne-photo')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 40) || 'as-bologne-photo';
+  let ext = 'jpg';
+  try {
+    const path = new URL(photo.url).pathname;
+    ext = (path.split('.').pop() || 'jpg').split(/[?#]/)[0].slice(0, 5) || 'jpg';
+  } catch (error) {
+    ext = 'jpg';
+  }
+  return `${base}-${Date.now()}.${ext}`;
+}
+
+window.openGalleryPhoto = function (index) {
+  const photo = galleryPhotos[index];
+  if (!photo) return;
+  currentGalleryPhotoIndex = index;
+  currentGalleryZoom = 1;
+  const viewer = document.getElementById("photo-viewer");
+  const img = document.getElementById("photo-viewer-img");
+  const caption = document.getElementById("photo-viewer-caption");
+  img.src = photo.url;
+  img.alt = photo.caption || photo.label || 'Photo A.S. Bologne';
+  caption.textContent = photo.caption || photo.label || '';
+  applyGalleryZoom();
+  viewer.classList.remove("section-hidden");
+  document.body.classList.add("modal-open");
+};
+
+window.closeGalleryPhoto = function () {
+  const viewer = document.getElementById("photo-viewer");
+  const img = document.getElementById("photo-viewer-img");
+  viewer.classList.add("section-hidden");
+  document.body.classList.remove("modal-open");
+  currentGalleryPhotoIndex = null;
+  currentGalleryZoom = 1;
+  img.src = '';
+};
+
+window.zoomGalleryPhoto = function (delta) {
+  currentGalleryZoom = Math.min(3, Math.max(0.5, currentGalleryZoom + delta));
+  applyGalleryZoom();
+};
+
+window.resetGalleryZoom = function () {
+  currentGalleryZoom = 1;
+  applyGalleryZoom();
+};
+
+window.stopPhotoViewerClick = function (event) {
+  event.stopPropagation();
+};
+
+window.downloadGalleryPhoto = async function () {
+  const photo = galleryPhotos[currentGalleryPhotoIndex];
+  if (!photo?.url) return;
+
+  try {
+    const response = await fetch(photo.url, { mode: 'cors' });
+    if (!response.ok) throw new Error('download failed');
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = galleryDownloadName(photo);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+  } catch (error) {
+    window.open(photo.url, "_blank", "noopener");
+  }
+};
 
 // ---- TAB ----
 window.switchTab = function (name) {
