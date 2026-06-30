@@ -55,7 +55,15 @@ window.adminLogout = async function () {
 
 async function showPanel() {
   const { data: isAdmin, error } = await supabase.rpc("is_admin");
-  if (error || !isAdmin) {
+  if (error) {
+    await supabase.auth.signOut();
+    const errEl = document.getElementById("login-err");
+    errEl.textContent = "Configuration admin incomplète. Exécute la migration SQL.";
+    showMsg('login-err');
+    return;
+  }
+
+  if (!isAdmin) {
     await supabase.auth.signOut();
     const errEl = document.getElementById("login-err");
     errEl.textContent = "Ce compte n'est pas autorisé.";
@@ -354,7 +362,7 @@ function escapeHtml(value) {
 window.showWhatsAppPanel = async function (matchId) {
   const [{ data: match, error: matchError }, { data: players, error: playerError }] = await Promise.all([
     supabase.from("matches").select("*").eq("id", matchId).single(),
-    supabase.from("giocatori").select("id,nome").eq("attivo", true).eq("tipo", "giocatore").order("nome")
+    supabase.from("giocatori").select("id,nome,tipo,ruolo").eq("attivo", true).order("tipo").order("nome")
   ]);
 
   if (matchError || playerError || !match) {
@@ -418,7 +426,7 @@ window.refreshWhatsAppLinks = function () {
   });
 
   if (!whatsappPlayers.length) {
-    list.innerHTML = '<div class="empty-msg">Aucun joueur actif.</div>';
+    list.innerHTML = '<div class="empty-msg">Aucune personne active.</div>';
   }
 };
 
@@ -468,6 +476,12 @@ window.loadPresenze = async function () {
 
   const statMap = {};
   (stats || []).forEach(s => statMap[s.giocatore_id] = s);
+  const dispoMap = {};
+  (dispo || []).forEach(d => { dispoMap[d.nome.toLowerCase().trim()] = d.disponibile; });
+  const registeredNames = new Set([
+    ...(players || []).map(p => p.nome.toLowerCase().trim()),
+    ...(staff || []).map(p => p.nome.toLowerCase().trim())
+  ]);
 
   let html = '';
 
@@ -476,14 +490,14 @@ window.loadPresenze = async function () {
     html += '<div class="card"><div class="empty-msg">Nessun giocatore registrato. Aggiungili dal tab Joueurs.</div></div>';
   } else {
     html += '<div class="card"><div class="card-title"><i class="ti ti-clipboard-check"></i> Présences — cliquez pour modifier</div>';
-    // mappa nomi giocatori (per evidenziare chi ha dato disponibilità)
-    const dispoMap = {};
-    (dispo || []).forEach(d => { dispoMap[d.nome.toLowerCase().trim()] = d.disponibile; });
 
     players.forEach(p => {
       const s = statMap[p.id];
       const presente = s && s.presente;
-      const initials = p.nome.split(' ').map(x => x[0]).join('').toUpperCase();
+      const initials = escapeHtml(p.nome.split(' ').map(x => x[0]).join('').toUpperCase());
+      const safeName = escapeHtml(p.nome);
+      const safePhoto = escapeHtml(p.foto_url || '');
+      const safePosition = escapeHtml(p.posizione || '');
       // info disponibilità data dal giocatore
       const dispoVal = dispoMap[p.nome.toLowerCase().trim()];
       let dispoTag = '';
@@ -493,11 +507,11 @@ window.loadPresenze = async function () {
       html += `<div class="pres-row pres-row-stats" id="prow-${p.id}">
         <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:140px;">
           ${p.foto_url
-            ? `<img src="${p.foto_url}" class="player-photo-sm" onerror="this.style.display='none'">`
+            ? `<img src="${safePhoto}" class="player-photo-sm" onerror="this.style.display='none'">`
             : `<div class="avatar">${initials}</div>`}
           <div>
-            <div style="font-size:14px;font-weight:500">${p.nome}${dispoTag}</div>
-            <span class="badge badge-navy" style="font-size:10px">${p.posizione}</span>
+            <div style="font-size:14px;font-weight:500">${safeName}${dispoTag}</div>
+            <span class="badge badge-navy" style="font-size:10px">${safePosition}</span>
           </div>
         </div>
         <div class="pres-controls">
@@ -508,7 +522,7 @@ window.loadPresenze = async function () {
             <button class="pres-btn ${!presente && s ? 'pres-btn-no active-no' : 'pres-btn-no'}" onclick="setPres(${p.id},${matchId},false,'prow-${p.id}')">
               <i class="ti ti-x"></i> Absent
             </button>
-            <button class="icon-btn icon-btn-del" onclick="deletePlayer(${p.id},'${p.nome.replace(/'/g, "\\'")}')" title="Supprimer ce joueur (doublon)"><i class="ti ti-trash"></i></button>
+            <button class="icon-btn icon-btn-del" data-name="${safeName}" onclick="deletePlayer(${p.id},this.dataset.name)" title="Supprimer ce joueur (doublon)"><i class="ti ti-trash"></i></button>
           </div>
           <div class="stat-inputs" id="stat-inputs-${p.id}" style="${presente ? '' : 'display:none'}">
             <label title="Numéro de maillot">👕<input type="number" min="1" max="99" value="${s && s.numero_maglia ? s.numero_maglia : ''}" placeholder="${p.numero || '?'}" id="maglia-${p.id}" onchange="saveStat(${p.id},${matchId},'numero_maglia',this.value)"></label>
@@ -529,15 +543,22 @@ window.loadPresenze = async function () {
     staff.forEach(p => {
       const s = statMap[p.id];
       const presente = s && s.presente;
-      const initials = p.nome.split(' ').map(x => x[0]).join('').toUpperCase();
+      const initials = escapeHtml(p.nome.split(' ').map(x => x[0]).join('').toUpperCase());
+      const safeName = escapeHtml(p.nome);
+      const safePhoto = escapeHtml(p.foto_url || '');
+      const safeRole = escapeHtml(p.ruolo || 'Staff');
+      const dispoVal = dispoMap[p.nome.toLowerCase().trim()];
+      let dispoTag = '';
+      if (dispoVal === true) dispoTag = '<span class="badge badge-win" style="font-size:9px;margin-left:6px">dispo ✓</span>';
+      else if (dispoVal === false) dispoTag = '<span class="badge badge-loss" style="font-size:9px;margin-left:6px">pas dispo</span>';
       html += `<div class="pres-row" id="prow-${p.id}">
         <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:140px;">
           ${p.foto_url
-            ? `<img src="${p.foto_url}" class="player-photo-sm" onerror="this.style.display='none'">`
+            ? `<img src="${safePhoto}" class="player-photo-sm" onerror="this.style.display='none'">`
             : `<div class="avatar" style="background:#633806">${initials}</div>`}
           <div>
-            <div style="font-size:14px;font-weight:500">${p.nome}</div>
-            <span class="badge badge-gold" style="font-size:10px">${p.ruolo || 'Staff'}</span>
+            <div style="font-size:14px;font-weight:500">${safeName}${dispoTag}</div>
+            <span class="badge badge-gold" style="font-size:10px">${safeRole}</span>
           </div>
         </div>
         <div style="display:flex;gap:6px;align-items:center;">
@@ -553,12 +574,12 @@ window.loadPresenze = async function () {
     html += '</div>';
   }
   if (dispo && dispo.length) {
-    const playerNames = new Set((players || []).map(p => p.nome.toLowerCase().trim()));
-    const orphans = dispo.filter(d => !playerNames.has(d.nome.toLowerCase().trim()));
+    const orphans = dispo.filter(d => !registeredNames.has(d.nome.toLowerCase().trim()));
     if (orphans.length) {
       html += '<div class="card"><div class="card-title"><i class="ti ti-user-question"></i> Ont répondu mais pas encore dans l\'effectif</div>';
       orphans.forEach(d => {
-        const initials = d.nome.split(' ').map(x => x[0]).join('').toUpperCase();
+        const initials = escapeHtml(d.nome.split(' ').map(x => x[0]).join('').toUpperCase());
+        const safeName = escapeHtml(d.nome);
         const dispoTag = d.disponibile
           ? '<span class="badge badge-win" style="font-size:10px">Disponible</span>'
           : '<span class="badge badge-loss" style="font-size:10px">Pas dispo</span>';
@@ -566,12 +587,12 @@ window.loadPresenze = async function () {
           <div style="display:flex;align-items:center;gap:10px;flex:1">
             <div class="avatar" style="background:#888">${initials}</div>
             <div>
-              <div style="font-size:14px;font-weight:500">${d.nome}</div>
+              <div style="font-size:14px;font-weight:500">${safeName}</div>
               ${dispoTag}
             </div>
           </div>
-          <button class="pres-btn" style="background:#1a2a5e;color:white;border-color:transparent;font-weight:bold;"
-            onclick="quickAddPlayer('${d.nome.replace(/'/g, "\\'")}')">
+          <button class="pres-btn" data-name="${safeName}" style="background:#1a2a5e;color:white;border-color:transparent;font-weight:bold;"
+            onclick="quickAddPlayer(this.dataset.name)">
             <i class="ti ti-user-plus"></i> Ajouter
           </button>
         </div>`;
@@ -659,9 +680,7 @@ async function loadPlayerList() {
     const subtitle = isStaff
       ? `<span class="badge badge-gold" style="font-size:10px">${escapeHtml(p.ruolo || 'Staff')}</span>`
       : `<span class="badge badge-navy" style="font-size:10px">${escapeHtml(p.posizione || '')}${p.numero ? ' · #' + p.numero : ''}</span>`;
-    const phoneLine = !isStaff
-      ? `<div class="player-phone ${contact?.telefono && contact?.whatsapp_attivo !== false ? '' : 'phone-missing'}"><i class="ti ti-brand-whatsapp"></i> ${escapeHtml(contact?.telefono || 'Téléphone manquant')}${contact?.telefono && contact?.whatsapp_attivo === false ? ' · messages refusés' : ''}</div>`
-      : '';
+    const phoneLine = `<div class="player-phone ${contact?.telefono && contact?.whatsapp_attivo !== false ? '' : 'phone-missing'}"><i class="ti ti-brand-whatsapp"></i> ${escapeHtml(contact?.telefono || 'Téléphone manquant')}${contact?.telefono && contact?.whatsapp_attivo === false ? ' · messages refusés' : ''}</div>`;
     return `<div class="pres-row" id="player-row-${p.id}">
       <div style="display:flex;align-items:center;gap:10px;flex:1">
         ${p.foto_url
@@ -708,15 +727,16 @@ window.editPlayer = async function (id) {
         </select>
       </div>
       <div class="form-row"><label class="form-lbl">Numéro habituel</label><input type="number" id="edit-num-${id}" value="${p.numero || ''}" min="1" max="99"></div>
-    </div>
-    <div class="form-row">
-      <label class="form-lbl">Téléphone WhatsApp</label>
+    </div>`;
+
+  const contactFields = `<div class="form-row">
+      <label class="form-lbl">Téléphone WhatsApp (optionnel)</label>
       <input type="tel" id="edit-phone-${id}" inputmode="tel" value="${(contact?.telefono || '').replace(/"/g, '&quot;')}" placeholder="+33 6 12 34 56 78">
-      <div class="simple-help">Nécessaire pour vérifier la réponse et envoyer le message.</div>
+      <div class="simple-help">Nécessaire pour prévenir la personne. Peut rester vide pour l'instant.</div>
     </div>
     <label class="checkbox-row">
       <input type="checkbox" id="edit-wa-${id}" ${contact?.whatsapp_attivo === false ? '' : 'checked'}>
-      <span>Le joueur accepte les messages WhatsApp du club</span>
+      <span>La personne accepte les messages WhatsApp du club</span>
     </label>`;
 
   const staffFields = `<div class="form-row">
@@ -737,6 +757,7 @@ window.editPlayer = async function (id) {
     </div>
     <div id="edit-fields-giocatore-${id}" class="${isStaff ? 'section-hidden' : ''}">${giocatoreFields}</div>
     <div id="edit-fields-staff-${id}" class="${isStaff ? '' : 'section-hidden'}">${staffFields}</div>
+    ${contactFields}
     <div class="form-row"><label class="form-lbl">Changer la photo (optionnel)</label><input type="file" id="edit-photo-${id}" accept="image/*"></div>
     <div style="display:flex;gap:8px;margin-top:8px;">
       <button class="btn-primary" style="flex:1" onclick="savePlayer(${id})"><i class="ti ti-device-floppy"></i> Enregistrer</button>
@@ -756,17 +777,18 @@ window.savePlayer = async function (id) {
   const nome = document.getElementById(`edit-nome-${id}`).value.trim();
   const tipo = document.getElementById(`edit-tipo-${id}`).value;
   const photoFile = document.getElementById(`edit-photo-${id}`).files[0];
+  const phone = document.getElementById(`edit-phone-${id}`).value.trim();
+  const whatsappEnabled = document.getElementById(`edit-wa-${id}`).checked;
   if (!nome) { alert("Le nom est requis"); return; }
+  if (phone && !isValidPhone(phone)) {
+    alert("Écris un téléphone complet avec le code du pays.");
+    return;
+  }
 
   const updates = { nome, tipo };
   if (tipo === 'giocatore') {
     updates.posizione = document.getElementById(`edit-pos-${id}`).value;
     const num = document.getElementById(`edit-num-${id}`).value;
-    const phone = document.getElementById(`edit-phone-${id}`).value.trim();
-    if (!isValidPhone(phone)) {
-      alert("Écris un téléphone complet avec le code du pays.");
-      return;
-    }
     updates.numero = num ? parseInt(num) : null;
     updates.ruolo = null;
   } else {
@@ -786,12 +808,10 @@ window.savePlayer = async function (id) {
   const { error } = await supabase.from("giocatori").update(updates).eq("id", id);
   if (error) { alert("Erreur: " + error.message); return; }
 
-  if (tipo === 'giocatore') {
-    const phone = document.getElementById(`edit-phone-${id}`).value.trim();
-    const whatsappEnabled = document.getElementById(`edit-wa-${id}`).checked;
+  if (phone) {
     const contactError = await savePlayerContact(id, phone, whatsappEnabled);
     if (contactError) {
-      alert("Joueur enregistré, mais téléphone non enregistré: " + contactError.message);
+      alert("Personne enregistrée, mais téléphone non enregistré: " + contactError.message);
       return;
     }
   } else {
@@ -840,7 +860,7 @@ window.addPlayer = async function () {
     showMsg('player-err');
     return;
   }
-  if (tipo === 'giocatore' && !isValidPhone(phone)) {
+  if (phone && !isValidPhone(phone)) {
     errEl.textContent = "Écris un téléphone complet avec le code du pays.";
     showMsg('player-err');
     return;
@@ -882,7 +902,7 @@ window.addPlayer = async function () {
     return;
   }
 
-  if (tipo === 'giocatore') {
+  if (phone) {
     const contactError = await savePlayerContact(created.id, phone, whatsappEnabled);
     if (contactError) {
       await supabase.from("giocatori").delete().eq("id", created.id);

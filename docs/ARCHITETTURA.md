@@ -109,13 +109,13 @@ pubblico.
 
 Tabella privata, accessibile solo agli amministratori autenticati:
 
-- riferimento al giocatore;
+- riferimento alla persona in `giocatori`, giocatore o staff;
 - telefono con prefisso internazionale;
 - consenso/attivazione WhatsApp;
 - data dell'ultimo aggiornamento.
 
-La pagina pubblica non legge questa tabella. Una funzione PostgreSQL controlla
-internamente soltanto le ultime quattro cifre.
+La pagina pubblica non legge questa tabella. Se il contatto manca, una funzione
+PostgreSQL puo salvare il telefono comunicato durante la risposta.
 
 ### `statistiche`
 
@@ -145,10 +145,12 @@ viene sostituita dalle funzioni:
 - `registra_disponibilita_giocatore`;
 - `registra_disponibilita_ospite`.
 
-Le funzioni verificano scadenza, giocatore e ultime quattro cifre del telefono.
+Le funzioni verificano scadenza e persona attiva. Per il momento la verifica
+con le ultime cifre del telefono non e obbligatoria, perche non tutti i numeri
+sono gia disponibili.
 
 La coppia `match_id, nome` e univoca ma sensibile a maiuscole, spazi e varianti
-del nome. Per i giocatori registrati sarebbe preferibile usare
+del nome. Per le persone registrate sarebbe preferibile usare sempre
 `giocatore_id`.
 
 ### `foto`
@@ -221,7 +223,7 @@ La versione preparata mantiene il frontend statico e aggiunge:
 - Supabase Auth per gli amministratori;
 - tabella dei ruoli admin;
 - RLS che consente scritture gestionali solo agli admin autenticati;
-- disponibilita verificata con foto e ultime quattro cifre del telefono;
+- disponibilita con conferma visiva della persona e raccolta telefono se manca;
 - scadenza delle risposte controllata anche nel database;
 - contatti telefonici in una tabella privata.
 

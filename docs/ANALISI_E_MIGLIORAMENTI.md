@@ -6,9 +6,9 @@ Audit eseguito il 14 giugno 2026 sul repository e sulla produzione
 Aggiornamento dello stesso giorno: nel repository e stata preparata, ma non
 applicata alla produzione, la migrazione
 `20260614_disponibilita_whatsapp.sql`. Introduce Supabase Auth, contatti
-privati, verifica delle ultime quattro cifre, scadenze e messaggi WhatsApp
-precompilati. Il rilascio deve seguire l'ordine documentato in
-`MANUTENZIONE.md`.
+privati, conferma visiva della persona, raccolta telefono se manca, scadenze e
+messaggi WhatsApp precompilati. Il rilascio deve seguire l'ordine documentato
+in `MANUTENZIONE.md`.
 
 ## Sintesi
 

@@ -58,9 +58,10 @@ sconfitte.
 
 1. Aprire `Dispo`.
 2. Selezionare la partita.
-3. Selezionare il proprio nome.
+3. Selezionare il proprio nome. Anche lo staff appare nella lista.
 4. Controllare la foto o le iniziali e premere `Oui, c'est moi`.
-5. Scrivere soltanto le ultime quattro cifre del proprio telefono.
+5. Se il club non ha ancora il tuo numero, scrivere il telefono completo con
+   prefisso internazionale.
 6. Premere il grande pulsante verde `Disponible` oppure rosso `Pas dispo`.
 7. Controllare il messaggio di conferma.
 
@@ -70,8 +71,8 @@ inserire nome e cognome.
 Una nuova risposta per la stessa partita e lo stesso nome sostituisce quella
 precedente.
 
-Le quattro cifre vengono controllate nel database. Il telefono completo non
-viene inviato alla pagina pubblica.
+Il telefono completo non viene letto dalla pagina pubblica. Se manca, viene
+salvato tramite una funzione del database nella tabella privata dei contatti.
 
 Se appare `Reponses fermees`, la data limite e passata e bisogna contattare
 direttamente il responsabile della squadra.
@@ -155,9 +156,9 @@ Per aggiungere una persona:
 3. scegliere `Joueur` oppure `Staff`;
 4. per un giocatore, indicare posizione e numero abituale;
 5. per lo staff, indicare il ruolo;
-6. per un giocatore, inserire il telefono WhatsApp completo di prefisso
+6. se disponibile, inserire il telefono WhatsApp completo di prefisso
    internazionale, per esempio `+33`, `+39` o `+225`;
-7. selezionare la casella WhatsApp solo se il giocatore accetta i messaggi del
+7. selezionare la casella WhatsApp solo se la persona accetta i messaggi del
    club;
 8. aggiungere una foto facoltativa;
 9. premere `Ajouter`.
@@ -165,10 +166,8 @@ Per aggiungere una persona:
 La modifica consente di cambiare nome, tipo, posizione, numero, ruolo e foto.
 Consente anche di correggere il telefono WhatsApp.
 
-Il telefono e necessario per:
-
-- verificare la disponibilita con le ultime quattro cifre;
-- preparare il messaggio WhatsApp personale.
+Il telefono serve per preparare il messaggio WhatsApp personale. Se manca, la
+persona potra inserirlo quando risponde alla disponibilita.
 
 ### Inviare le notifiche WhatsApp
 

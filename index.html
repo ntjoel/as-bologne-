@@ -80,17 +80,15 @@
           </div>
         </div>
         <div id="avail-phone-check" class="phone-check section-hidden">
-          <label class="form-lbl" for="avail-phone-last4">Les 4 derniers chiffres de ton téléphone</label>
+          <label class="form-lbl" for="avail-phone-input">Téléphone WhatsApp, si tu ne l'as pas encore donné</label>
           <input
             type="tel"
-            id="avail-phone-last4"
-            inputmode="numeric"
-            autocomplete="off"
-            maxlength="4"
-            pattern="[0-9]{4}"
-            placeholder="1234"
+            id="avail-phone-input"
+            inputmode="tel"
+            autocomplete="tel"
+            placeholder="+33 6 12 34 56 78"
           >
-          <div class="simple-help">Seulement 4 chiffres pour vérifier que c'est bien toi.</div>
+          <div class="simple-help">Si le club a déjà ton numéro, tu peux laisser ce champ vide.</div>
         </div>
         <!-- Campi manuali, visibili solo se "Je ne suis pas dans la liste" -->
         <div id="avail-manual-fields" class="section-hidden">

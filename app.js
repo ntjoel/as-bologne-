@@ -116,16 +116,22 @@ function renderMatchSelect() {
   loadAvailPlayers();
 }
 
-// Popola il menu a tendina con i giocatori della rosa
+// Popola il menu a tendina con tutte le persone attive della rosa e dello staff
 async function loadAvailPlayers() {
   const sel = document.getElementById("avail-player-select");
   if (!sel) return;
-  const { data } = await supabase.from("giocatori").select("id,nome,foto_url").eq("attivo", true).eq("tipo", "giocatore").order("nome");
+  const { data } = await supabase
+    .from("giocatori")
+    .select("id,nome,foto_url,tipo,ruolo")
+    .eq("attivo", true)
+    .order("tipo", { ascending: true })
+    .order("nome", { ascending: true });
   availPlayers = new Map((data || []).map(p => [String(p.id), p]));
   sel.replaceChildren();
   sel.add(new Option("-- Sélectionne ton nom --", ""));
   (data || []).forEach(player => {
-    const option = new Option(player.nome, String(player.id));
+    const label = player.tipo === "staff" ? `${player.nome} - Staff` : player.nome;
+    const option = new Option(label, String(player.id));
     option.dataset.name = player.nome;
     sel.add(option);
   });
@@ -138,7 +144,7 @@ function resetAvailIdentity(clearSelection = false) {
   document.getElementById("avail-phone-check").classList.add("section-hidden");
   document.getElementById("avail-manual-fields").classList.add("section-hidden");
   document.getElementById("avail-response-actions").classList.add("section-hidden");
-  document.getElementById("avail-phone-last4").value = '';
+  document.getElementById("avail-phone-input").value = '';
   if (clearSelection) document.getElementById("avail-player-select").value = '';
 }
 
@@ -222,7 +228,7 @@ window.confirmAvailIdentity = function (confirmed) {
   document.getElementById("avail-identity-check").classList.add("section-hidden");
   document.getElementById("avail-phone-check").classList.remove("section-hidden");
   document.getElementById("avail-response-actions").classList.remove("section-hidden");
-  document.getElementById("avail-phone-last4").focus();
+  document.getElementById("avail-phone-input").focus();
 };
 
 window.loadAvail = async function () {
@@ -277,20 +283,16 @@ window.submitAvail = async function (ok) {
   let error;
 
   if (selected && selected !== "__autre__") {
-    const last4 = document.getElementById("avail-phone-last4").value.replace(/\D/g, '');
+    const phone = document.getElementById("avail-phone-input").value.trim();
     if (!availIdentityConfirmed) {
       showAvailError("Confirme d'abord que c'est bien toi.");
-      return;
-    }
-    if (last4.length !== 4) {
-      showAvailError("Écris les 4 derniers chiffres de ton téléphone.");
       return;
     }
 
     ({ error } = await supabase.rpc("registra_disponibilita_giocatore", {
       p_match_id: parseInt(id),
       p_giocatore_id: parseInt(selected),
-      p_ultime_cifre: last4,
+      p_telefono: phone || null,
       p_disponibile: ok
     }));
   } else {
@@ -313,8 +315,8 @@ window.submitAvail = async function (ok) {
     console.error(error);
     const messages = {
       RACCOLTA_CHIUSA: "Les réponses sont fermées.",
-      TELEFONO_MANCANTE: "Ton téléphone n'est pas encore enregistré. Appelle le responsable.",
-      VERIFICA_NON_VALIDA: "Ces 4 chiffres ne correspondent pas. Essaie encore.",
+      TELEFONO_MANCANTE: "Ton téléphone n'est pas encore enregistré. Écris-le dans le champ téléphone.",
+      TELEFONO_NON_VALIDO: "Écris un téléphone complet avec le code du pays.",
       NOME_GIA_PRESENTE: "Ton nom est dans la liste. Sélectionne-le.",
       NOME_NON_VALIDO: "Écris ton prénom et ton nom."
     };

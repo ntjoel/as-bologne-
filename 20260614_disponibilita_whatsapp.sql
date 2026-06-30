@@ -178,14 +178,18 @@ CREATE POLICY "admin_manage_disponibilita"
   USING ((SELECT public.is_admin()))
   WITH CHECK ((SELECT public.is_admin()));
 
--- Registra la risposta di un giocatore soltanto se:
+-- Registra la risposta di una persona in rosa/staff soltanto se:
 -- - la raccolta e ancora aperta;
--- - il giocatore e attivo;
--- - le ultime quattro cifre corrispondono al telefono salvato.
+-- - la persona e attiva;
+-- - se il telefono non e ancora registrato, viene fornito adesso.
+DROP FUNCTION IF EXISTS public.registra_disponibilita_giocatore(
+  INTEGER, INTEGER, TEXT, BOOLEAN
+);
+
 CREATE OR REPLACE FUNCTION public.registra_disponibilita_giocatore(
   p_match_id INTEGER,
   p_giocatore_id INTEGER,
-  p_ultime_cifre TEXT,
+  p_telefono TEXT,
   p_disponibile BOOLEAN
 )
 RETURNS VOID
@@ -196,9 +200,9 @@ AS $$
 DECLARE
   v_nome TEXT;
   v_telefono TEXT;
+  v_telefono_input TEXT;
   v_scadenza TIMESTAMPTZ;
   v_data DATE;
-  v_cifre TEXT;
 BEGIN
   SELECT data, scadenza_disponibilita
     INTO v_data, v_scadenza
@@ -220,22 +224,36 @@ BEGIN
   LEFT JOIN public.contatti_giocatori c
     ON c.giocatore_id = g.id
   WHERE g.id = p_giocatore_id
-    AND g.attivo = TRUE
-    AND COALESCE(g.tipo, 'giocatore') = 'giocatore';
+    AND g.attivo = TRUE;
 
   IF NOT FOUND THEN
     RAISE EXCEPTION USING MESSAGE = 'GIOCATORE_NON_TROVATO';
   END IF;
 
   IF v_telefono IS NULL THEN
-    RAISE EXCEPTION USING MESSAGE = 'TELEFONO_MANCANTE';
-  END IF;
+    v_telefono_input := NULLIF(btrim(COALESCE(p_telefono, '')), '');
 
-  v_cifre := regexp_replace(COALESCE(p_ultime_cifre, ''), '[^0-9]', '', 'g');
+    IF v_telefono_input IS NULL THEN
+      RAISE EXCEPTION USING MESSAGE = 'TELEFONO_MANCANTE';
+    END IF;
 
-  IF char_length(v_cifre) <> 4
-     OR right(regexp_replace(v_telefono, '[^0-9]', '', 'g'), 4) <> v_cifre THEN
-    RAISE EXCEPTION USING MESSAGE = 'VERIFICA_NON_VALIDA';
+    IF char_length(regexp_replace(v_telefono_input, '[^0-9]', '', 'g')) < 8 THEN
+      RAISE EXCEPTION USING MESSAGE = 'TELEFONO_NON_VALIDO';
+    END IF;
+
+    INSERT INTO public.contatti_giocatori (
+      giocatore_id,
+      telefono,
+      whatsapp_attivo,
+      updated_at
+    )
+    VALUES (
+      p_giocatore_id,
+      v_telefono_input,
+      TRUE,
+      NOW()
+    )
+    ON CONFLICT (giocatore_id) DO NOTHING;
   END IF;
 
   INSERT INTO public.disponibilita (
@@ -266,7 +284,7 @@ GRANT EXECUTE ON FUNCTION public.registra_disponibilita_giocatore(
 ) TO anon, authenticated;
 
 -- Permette la risposta a chi non e ancora nella rosa. Se il nome esiste
--- gia, obbliga a usare la verifica telefonica del giocatore registrato.
+-- gia, obbliga a selezionare la persona registrata nella lista.
 CREATE OR REPLACE FUNCTION public.registra_disponibilita_ospite(
   p_match_id INTEGER,
   p_nome TEXT,
@@ -346,6 +364,8 @@ GRANT EXECUTE ON FUNCTION public.registra_disponibilita_ospite(
   INTEGER, TEXT, TEXT, BOOLEAN
 ) TO anon, authenticated;
 
+NOTIFY pgrst, 'reload schema';
+
 COMMIT;
 
 -- ============================================================
@@ -354,13 +374,16 @@ COMMIT;
 -- 1. In Supabase: Authentication > Users > Add user.
 --    Usare esattamente l'e-mail j.ntiegoun@gmail.com, scegliere una
 --    password robusta e attivare Auto Confirm User.
--- 2. Copiare l'UUID dell'utente.
--- 3. Eseguire:
+-- 2. Eseguire il file autorizza_admin.sql.
+--    In alternativa eseguire:
 --
 -- INSERT INTO public.admin_users (user_id)
--- VALUES ('UUID-UTENTE-ADMIN');
+-- SELECT id
+-- FROM auth.users
+-- WHERE lower(email) = lower('j.ntiegoun@gmail.com')
+-- ON CONFLICT (user_id) DO NOTHING;
 --
--- 4. Verificare anche le policy del bucket Storage "foto":
+-- 3. Verificare anche le policy del bucket Storage "foto":
 --    upload, modifica ed eliminazione devono essere consentiti
 --    soltanto agli amministratori autenticati.
 -- ============================================================

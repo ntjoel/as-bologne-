@@ -144,15 +144,6 @@
             </div>
             <div class="form-row"><label class="form-lbl">Numéro habituel (optionnel)</label><input type="number" id="new-player-num" placeholder="10" min="1" max="99"></div>
           </div>
-          <div class="form-row">
-            <label class="form-lbl" for="new-player-phone">Téléphone WhatsApp</label>
-            <input type="tel" id="new-player-phone" inputmode="tel" placeholder="+33 6 12 34 56 78">
-            <div class="simple-help">Avec le code du pays, par exemple +33, +39 ou +225.</div>
-          </div>
-          <label class="checkbox-row">
-            <input type="checkbox" id="new-player-wa" checked>
-            <span>Le joueur accepte les messages WhatsApp du club</span>
-          </label>
         </div>
         <!-- Campi STAFF -->
         <div id="fields-staff" class="section-hidden">
@@ -172,6 +163,15 @@
             </select>
           </div>
         </div>
+        <div class="form-row">
+          <label class="form-lbl" for="new-player-phone">Téléphone WhatsApp (optionnel)</label>
+          <input type="tel" id="new-player-phone" inputmode="tel" placeholder="+33 6 12 34 56 78">
+          <div class="simple-help">Avec le code du pays. Peut être ajouté plus tard.</div>
+        </div>
+        <label class="checkbox-row">
+          <input type="checkbox" id="new-player-wa" checked>
+          <span>La personne accepte les messages WhatsApp du club</span>
+        </label>
         <div class="form-row">
           <label class="form-lbl">Photo (optionnel)</label>
           <input type="file" id="new-player-photo" accept="image/*" style="padding:6px;">

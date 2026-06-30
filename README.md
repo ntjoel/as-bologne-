@@ -32,7 +32,8 @@ Nel repository e stata preparata la migrazione
 `20260614_disponibilita_whatsapp.sql`, insieme al nuovo frontend, per:
 
 - accesso admin con sola password visibile e identita tecnica Supabase Auth;
-- verifica del giocatore con foto e ultime quattro cifre del telefono;
+- disponibilita di giocatori e staff con conferma visiva e telefono raccolto se
+  manca;
 - scadenza della raccolta disponibilita;
 - telefoni conservati in una tabella privata;
 - messaggi WhatsApp precompilati per gruppo o singoli giocatori.
@@ -78,7 +79,10 @@ supabase_setup.sql             Schema iniziale storico
 aggiungi_staff_maglia.sql      Migrazione staff e maglia
 aggiungi_impostazioni.sql      Migrazione impostazioni/logo
 20260614_disponibilita_whatsapp.sql
-                               Auth, telefoni, verifica, scadenze
+                               Auth, telefoni, disponibilita, scadenze
+20260630_disponibilita_staff_telefono_opzionale.sql
+                               Staff in disponibilita e telefono opzionale
+autorizza_admin.sql            Autorizza l'account tecnico nel pannello
 popola_dati.sql                Dati dimostrativi, non usare in produzione
 docs/                          Documentazione operativa e tecnica
 ```

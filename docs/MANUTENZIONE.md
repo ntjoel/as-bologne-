@@ -152,12 +152,13 @@ Per distribuire la migrazione `20260614_disponibilita_whatsapp.sql`:
 4. creare in `Authentication > Users` l'utente
    `j.ntiegoun@gmail.com`, impostare una password robusta e attivare
    `Auto Confirm User`;
-5. inserire il suo UUID in `admin_users`, come indicato in fondo alla
-   migrazione;
-6. inserire telefoni fittizi nei contatti dei giocatori di staging;
+5. eseguire `autorizza_admin.sql` e verificare che restituisca
+   `admin_autorizzato = true`;
+6. inserire alcuni telefoni fittizi nei contatti di giocatori e staff di
+   staging;
 7. pubblicare il nuovo frontend solo su una Preview Deployment;
-8. provare login, creazione partita, scadenza, verifica a quattro cifre e link
-   WhatsApp;
+8. provare login, creazione partita, scadenza, risposta di giocatore e staff,
+   richiesta telefono mancante e link WhatsApp;
 9. verificare e restringere le policy del bucket Storage `foto`;
 10. applicare la migrazione alla produzione;
 11. creare e autorizzare l'account tecnico di produzione;
