@@ -3,11 +3,35 @@
 -- Data: 2026-06-30
 --
 -- Usare questo file se la migrazione del 14 giugno e gia stata
--- applicata. Se si parte da zero, basta usare la versione aggiornata
--- di 20260614_disponibilita_whatsapp.sql.
+-- applicata. Include anche il telefono facoltativo per persone fuori lista.
+-- Se si parte da zero, basta usare la versione aggiornata di
+-- 20260614_disponibilita_whatsapp.sql.
 -- ============================================================
 
 BEGIN;
+
+CREATE TABLE IF NOT EXISTS contatti_ospiti_disponibilita (
+  match_id INTEGER NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+  nome TEXT NOT NULL,
+  telefono TEXT NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (match_id, nome),
+  CONSTRAINT telefono_ospite_non_vuoto
+    CHECK (char_length(regexp_replace(telefono, '[^0-9]', '', 'g')) >= 8)
+);
+
+ALTER TABLE contatti_ospiti_disponibilita ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "admin_manage_guest_contacts" ON contatti_ospiti_disponibilita;
+CREATE POLICY "admin_manage_guest_contacts"
+  ON contatti_ospiti_disponibilita
+  FOR ALL
+  TO authenticated
+  USING ((SELECT public.is_admin()))
+  WITH CHECK ((SELECT public.is_admin()));
+
+REVOKE ALL ON contatti_ospiti_disponibilita FROM anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON contatti_ospiti_disponibilita TO authenticated;
 
 DROP FUNCTION IF EXISTS public.registra_disponibilita_giocatore(
   INTEGER, INTEGER, TEXT, BOOLEAN
@@ -108,6 +132,117 @@ REVOKE ALL ON FUNCTION public.registra_disponibilita_giocatore(
 ) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.registra_disponibilita_giocatore(
   INTEGER, INTEGER, TEXT, BOOLEAN
+) TO anon, authenticated;
+
+DROP FUNCTION IF EXISTS public.registra_disponibilita_ospite(
+  INTEGER, TEXT, TEXT, BOOLEAN
+);
+
+CREATE OR REPLACE FUNCTION public.registra_disponibilita_ospite(
+  p_match_id INTEGER,
+  p_nome TEXT,
+  p_cognome TEXT,
+  p_telefono TEXT,
+  p_disponibile BOOLEAN
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_nome_completo TEXT;
+  v_telefono_input TEXT;
+  v_scadenza TIMESTAMPTZ;
+  v_data DATE;
+BEGIN
+  SELECT data, scadenza_disponibilita
+    INTO v_data, v_scadenza
+  FROM public.matches
+  WHERE id = p_match_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION USING MESSAGE = 'PARTITA_NON_TROVATA';
+  END IF;
+
+  IF v_data < (NOW() AT TIME ZONE 'Europe/Paris')::DATE
+     OR (v_scadenza IS NOT NULL AND NOW() > v_scadenza) THEN
+    RAISE EXCEPTION USING MESSAGE = 'RACCOLTA_CHIUSA';
+  END IF;
+
+  v_nome_completo := btrim(
+    regexp_replace(
+      btrim(COALESCE(p_nome, '')) || ' ' || btrim(COALESCE(p_cognome, '')),
+      '\s+',
+      ' ',
+      'g'
+    )
+  );
+
+  IF char_length(v_nome_completo) < 3
+     OR char_length(v_nome_completo) > 100 THEN
+    RAISE EXCEPTION USING MESSAGE = 'NOME_NON_VALIDO';
+  END IF;
+
+  v_telefono_input := NULLIF(btrim(COALESCE(p_telefono, '')), '');
+
+  IF v_telefono_input IS NOT NULL
+     AND char_length(regexp_replace(v_telefono_input, '[^0-9]', '', 'g')) < 8 THEN
+    RAISE EXCEPTION USING MESSAGE = 'TELEFONO_NON_VALIDO';
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM public.giocatori
+    WHERE attivo = TRUE
+      AND lower(btrim(nome)) = lower(v_nome_completo)
+  ) THEN
+    RAISE EXCEPTION USING MESSAGE = 'NOME_GIA_PRESENTE';
+  END IF;
+
+  INSERT INTO public.disponibilita (
+    match_id,
+    giocatore_id,
+    nome,
+    disponibile
+  )
+  VALUES (
+    p_match_id,
+    NULL,
+    v_nome_completo,
+    p_disponibile
+  )
+  ON CONFLICT (match_id, nome)
+  DO UPDATE SET
+    disponibile = EXCLUDED.disponibile,
+    created_at = NOW();
+
+  IF v_telefono_input IS NOT NULL THEN
+    INSERT INTO public.contatti_ospiti_disponibilita (
+      match_id,
+      nome,
+      telefono,
+      updated_at
+    )
+    VALUES (
+      p_match_id,
+      v_nome_completo,
+      v_telefono_input,
+      NOW()
+    )
+    ON CONFLICT (match_id, nome)
+    DO UPDATE SET
+      telefono = EXCLUDED.telefono,
+      updated_at = NOW();
+  END IF;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.registra_disponibilita_ospite(
+  INTEGER, TEXT, TEXT, TEXT, BOOLEAN
+) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.registra_disponibilita_ospite(
+  INTEGER, TEXT, TEXT, TEXT, BOOLEAN
 ) TO anon, authenticated;
 
 NOTIFY pgrst, 'reload schema';

@@ -41,6 +41,20 @@ CREATE TABLE IF NOT EXISTS contatti_giocatori (
 
 ALTER TABLE contatti_giocatori ENABLE ROW LEVEL SECURITY;
 
+-- Telefoni lasciati da persone non ancora presenti in rosa.
+-- Tabella privata: la pagina pubblica non la legge.
+CREATE TABLE IF NOT EXISTS contatti_ospiti_disponibilita (
+  match_id INTEGER NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+  nome TEXT NOT NULL,
+  telefono TEXT NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (match_id, nome),
+  CONSTRAINT telefono_ospite_non_vuoto
+    CHECK (char_length(regexp_replace(telefono, '[^0-9]', '', 'g')) >= 8)
+);
+
+ALTER TABLE contatti_ospiti_disponibilita ENABLE ROW LEVEL SECURITY;
+
 -- Elenco degli utenti Supabase autorizzati a usare il pannello admin.
 CREATE TABLE IF NOT EXISTS admin_users (
   user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -83,6 +97,17 @@ CREATE POLICY "admin_manage_contacts"
 
 REVOKE ALL ON contatti_giocatori FROM anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON contatti_giocatori TO authenticated;
+
+DROP POLICY IF EXISTS "admin_manage_guest_contacts" ON contatti_ospiti_disponibilita;
+CREATE POLICY "admin_manage_guest_contacts"
+  ON contatti_ospiti_disponibilita
+  FOR ALL
+  TO authenticated
+  USING ((SELECT public.is_admin()))
+  WITH CHECK ((SELECT public.is_admin()));
+
+REVOKE ALL ON contatti_ospiti_disponibilita FROM anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON contatti_ospiti_disponibilita TO authenticated;
 
 -- Letture pubbliche necessarie al sito.
 DROP POLICY IF EXISTS "read_all" ON matches;
@@ -285,10 +310,15 @@ GRANT EXECUTE ON FUNCTION public.registra_disponibilita_giocatore(
 
 -- Permette la risposta a chi non e ancora nella rosa. Se il nome esiste
 -- gia, obbliga a selezionare la persona registrata nella lista.
+DROP FUNCTION IF EXISTS public.registra_disponibilita_ospite(
+  INTEGER, TEXT, TEXT, BOOLEAN
+);
+
 CREATE OR REPLACE FUNCTION public.registra_disponibilita_ospite(
   p_match_id INTEGER,
   p_nome TEXT,
   p_cognome TEXT,
+  p_telefono TEXT,
   p_disponibile BOOLEAN
 )
 RETURNS VOID
@@ -298,6 +328,7 @@ SET search_path = public, pg_temp
 AS $$
 DECLARE
   v_nome_completo TEXT;
+  v_telefono_input TEXT;
   v_scadenza TIMESTAMPTZ;
   v_data DATE;
 BEGIN
@@ -329,6 +360,13 @@ BEGIN
     RAISE EXCEPTION USING MESSAGE = 'NOME_NON_VALIDO';
   END IF;
 
+  v_telefono_input := NULLIF(btrim(COALESCE(p_telefono, '')), '');
+
+  IF v_telefono_input IS NOT NULL
+     AND char_length(regexp_replace(v_telefono_input, '[^0-9]', '', 'g')) < 8 THEN
+    RAISE EXCEPTION USING MESSAGE = 'TELEFONO_NON_VALIDO';
+  END IF;
+
   IF EXISTS (
     SELECT 1
     FROM public.giocatori
@@ -354,14 +392,33 @@ BEGIN
   DO UPDATE SET
     disponibile = EXCLUDED.disponibile,
     created_at = NOW();
+
+  IF v_telefono_input IS NOT NULL THEN
+    INSERT INTO public.contatti_ospiti_disponibilita (
+      match_id,
+      nome,
+      telefono,
+      updated_at
+    )
+    VALUES (
+      p_match_id,
+      v_nome_completo,
+      v_telefono_input,
+      NOW()
+    )
+    ON CONFLICT (match_id, nome)
+    DO UPDATE SET
+      telefono = EXCLUDED.telefono,
+      updated_at = NOW();
+  END IF;
 END;
 $$;
 
 REVOKE ALL ON FUNCTION public.registra_disponibilita_ospite(
-  INTEGER, TEXT, TEXT, BOOLEAN
+  INTEGER, TEXT, TEXT, TEXT, BOOLEAN
 ) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.registra_disponibilita_ospite(
-  INTEGER, TEXT, TEXT, BOOLEAN
+  INTEGER, TEXT, TEXT, TEXT, BOOLEAN
 ) TO anon, authenticated;
 
 NOTIFY pgrst, 'reload schema';

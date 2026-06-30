@@ -96,6 +96,11 @@
             <div class="form-row"><label class="form-lbl">Prénom</label><input type="text" id="avail-nome" placeholder="Marco"></div>
             <div class="form-row"><label class="form-lbl">Nom</label><input type="text" id="avail-cognome" placeholder="Rossi"></div>
           </div>
+          <div class="form-row">
+            <label class="form-lbl" for="avail-guest-phone">Téléphone WhatsApp (facultatif)</label>
+            <input type="tel" id="avail-guest-phone" inputmode="tel" autocomplete="tel" placeholder="+33 6 12 34 56 78">
+            <div class="simple-help">Sans téléphone, le club ne pourra pas t'envoyer les prochaines notifications.</div>
+          </div>
         </div>
         <div id="avail-response-actions" class="availability-actions section-hidden">
           <button class="btn-si" onclick="submitAvail(true)"><i class="ti ti-check"></i> OUI<br>Disponible</button>

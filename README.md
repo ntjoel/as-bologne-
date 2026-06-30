@@ -34,6 +34,7 @@ Nel repository e stata preparata la migrazione
 - accesso admin con sola password visibile e identita tecnica Supabase Auth;
 - disponibilita di giocatori e staff con conferma visiva e telefono raccolto se
   manca;
+- telefono facoltativo per persone fuori lista, salvato in tabella privata;
 - scadenza della raccolta disponibilita;
 - telefoni conservati in una tabella privata;
 - messaggi WhatsApp precompilati per il gruppo o per singole persone.

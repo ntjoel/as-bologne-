@@ -145,6 +145,7 @@ function resetAvailIdentity(clearSelection = false) {
   document.getElementById("avail-manual-fields").classList.add("section-hidden");
   document.getElementById("avail-response-actions").classList.add("section-hidden");
   document.getElementById("avail-phone-input").value = '';
+  document.getElementById("avail-guest-phone").value = '';
   if (clearSelection) document.getElementById("avail-player-select").value = '';
 }
 
@@ -303,10 +304,12 @@ window.submitAvail = async function (ok) {
       return;
     }
 
+    const phone = (document.getElementById("avail-guest-phone").value || '').trim();
     ({ error } = await supabase.rpc("registra_disponibilita_ospite", {
       p_match_id: parseInt(id),
       p_nome: nome,
       p_cognome: cognome,
+      p_telefono: phone || null,
       p_disponibile: ok
     }));
   }
@@ -327,6 +330,7 @@ window.submitAvail = async function (ok) {
 
   document.getElementById("avail-nome").value = '';
   document.getElementById("avail-cognome").value = '';
+  document.getElementById("avail-guest-phone").value = '';
   resetAvailIdentity(true);
   showMsg('avail-success');
   loadAvail();

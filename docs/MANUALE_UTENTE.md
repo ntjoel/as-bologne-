@@ -66,13 +66,16 @@ sconfitte.
 7. Controllare il messaggio di conferma.
 
 Se il nome non e presente, scegliere l'opzione per una persona non in elenco e
-inserire nome e cognome.
+inserire nome e cognome. Il telefono WhatsApp e facoltativo, ma senza telefono
+il club non potra inviare le prossime notifiche a quella persona.
 
 Una nuova risposta per la stessa partita e lo stesso nome sostituisce quella
 precedente.
 
 Il telefono completo non viene letto dalla pagina pubblica. Se manca, viene
 salvato tramite una funzione del database nella tabella privata dei contatti.
+Per le persone fuori lista viene salvato in una tabella privata collegata alla
+risposta, cosi il responsabile puo ricopiarlo nella scheda della persona.
 
 Se appare `Reponses fermees`, la data limite e passata e bisogna contattare
 direttamente il responsabile della squadra.

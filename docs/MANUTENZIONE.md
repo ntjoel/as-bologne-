@@ -158,7 +158,8 @@ Per distribuire la migrazione `20260614_disponibilita_whatsapp.sql`:
    staging;
 7. pubblicare il nuovo frontend solo su una Preview Deployment;
 8. provare login, creazione partita, scadenza, risposta di giocatore e staff,
-   richiesta telefono mancante e link WhatsApp;
+   richiesta telefono mancante, risposta ospite con e senza telefono e link
+   WhatsApp;
 9. verificare e restringere le policy del bucket Storage `foto`;
 10. applicare la migrazione alla produzione;
 11. creare e autorizzare l'account tecnico di produzione;

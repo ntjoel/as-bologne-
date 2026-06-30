@@ -469,15 +469,26 @@ window.loadPresenze = async function () {
   const wrap = document.getElementById("presenze-table-wrap");
   if (!matchId) { wrap.innerHTML = ''; return; }
 
-  const { data: players } = await supabase.from("giocatori").select("*").eq("attivo", true).eq("tipo", "giocatore").order("nome");
-  const { data: staff } = await supabase.from("giocatori").select("*").eq("attivo", true).eq("tipo", "staff").order("ruolo");
-  const { data: stats } = await supabase.from("statistiche").select("*").eq("match_id", matchId);
-  const { data: dispo } = await supabase.from("disponibilita").select("*").eq("match_id", matchId);
+  const [
+    { data: players },
+    { data: staff },
+    { data: stats },
+    { data: dispo },
+    { data: guestContacts }
+  ] = await Promise.all([
+    supabase.from("giocatori").select("*").eq("attivo", true).eq("tipo", "giocatore").order("nome"),
+    supabase.from("giocatori").select("*").eq("attivo", true).eq("tipo", "staff").order("ruolo"),
+    supabase.from("statistiche").select("*").eq("match_id", matchId),
+    supabase.from("disponibilita").select("*").eq("match_id", matchId),
+    supabase.from("contatti_ospiti_disponibilita").select("nome,telefono").eq("match_id", matchId)
+  ]);
 
   const statMap = {};
   (stats || []).forEach(s => statMap[s.giocatore_id] = s);
   const dispoMap = {};
   (dispo || []).forEach(d => { dispoMap[d.nome.toLowerCase().trim()] = d.disponibile; });
+  const guestContactMap = {};
+  (guestContacts || []).forEach(c => { guestContactMap[c.nome.toLowerCase().trim()] = c.telefono; });
   const registeredNames = new Set([
     ...(players || []).map(p => p.nome.toLowerCase().trim()),
     ...(staff || []).map(p => p.nome.toLowerCase().trim())
@@ -580,6 +591,11 @@ window.loadPresenze = async function () {
       orphans.forEach(d => {
         const initials = escapeHtml(d.nome.split(' ').map(x => x[0]).join('').toUpperCase());
         const safeName = escapeHtml(d.nome);
+        const guestPhone = guestContactMap[d.nome.toLowerCase().trim()] || '';
+        const safePhone = escapeHtml(guestPhone);
+        const phoneLine = guestPhone
+          ? `<div class="player-phone"><i class="ti ti-brand-whatsapp"></i> ${safePhone}</div>`
+          : '<div class="player-phone phone-missing"><i class="ti ti-brand-whatsapp"></i> Téléphone non indiqué</div>';
         const dispoTag = d.disponibile
           ? '<span class="badge badge-win" style="font-size:10px">Disponible</span>'
           : '<span class="badge badge-loss" style="font-size:10px">Pas dispo</span>';
@@ -589,10 +605,11 @@ window.loadPresenze = async function () {
             <div>
               <div style="font-size:14px;font-weight:500">${safeName}</div>
               ${dispoTag}
+              ${phoneLine}
             </div>
           </div>
-          <button class="pres-btn" data-name="${safeName}" style="background:#1a2a5e;color:white;border-color:transparent;font-weight:bold;"
-            onclick="quickAddPlayer(this.dataset.name)">
+          <button class="pres-btn" data-name="${safeName}" data-phone="${safePhone}" style="background:#1a2a5e;color:white;border-color:transparent;font-weight:bold;"
+            onclick="quickAddPlayer(this.dataset.name,this.dataset.phone)">
             <i class="ti ti-user-plus"></i> Ajouter
           </button>
         </div>`;
@@ -605,9 +622,19 @@ window.loadPresenze = async function () {
 };
 
 // Aggiunge rapidamente un giocatore che ha dato disponibilità
-window.quickAddPlayer = async function (nome) {
-  const { error } = await supabase.from("giocatori").insert({ nome, posizione: 'M', tipo: 'giocatore', attivo: true });
+window.quickAddPlayer = async function (nome, phone = '') {
+  const { data: created, error } = await supabase
+    .from("giocatori")
+    .insert({ nome, posizione: 'M', tipo: 'giocatore', attivo: true })
+    .select("id")
+    .single();
   if (error) { console.error(error); alert("Erreur: " + error.message); return; }
+
+  if (phone && isValidPhone(phone)) {
+    const contactError = await savePlayerContact(created.id, phone, true);
+    if (contactError) alert("Joueur ajouté, mais téléphone non enregistré: " + contactError.message);
+  }
+
   await loadPresenze();
   await loadPlayerList();
   const { count } = await supabase.from("giocatori").select("*", { count: "exact", head: true }).eq("tipo", "giocatore").eq("attivo", true);

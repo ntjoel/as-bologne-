@@ -117,6 +117,19 @@ Tabella privata, accessibile solo agli amministratori autenticati:
 La pagina pubblica non legge questa tabella. Se il contatto manca, una funzione
 PostgreSQL puo salvare il telefono comunicato durante la risposta.
 
+### `contatti_ospiti_disponibilita`
+
+Tabella privata usata per le persone che rispondono scegliendo `Je ne suis pas
+dans la liste`:
+
+- partita;
+- nome scritto nella disponibilita;
+- telefono facoltativo;
+- data dell'ultimo aggiornamento.
+
+La risposta pubblica resta in `disponibilita`; il telefono rimane separato per
+non esporlo nelle letture pubbliche.
+
 ### `statistiche`
 
 Una riga per persona e partita:
@@ -147,7 +160,8 @@ viene sostituita dalle funzioni:
 
 Le funzioni verificano scadenza e persona attiva. Per il momento la verifica
 con le ultime cifre del telefono non e obbligatoria, perche non tutti i numeri
-sono gia disponibili.
+sono gia disponibili. Per gli ospiti il telefono e facoltativo e viene salvato
+solo se inserito.
 
 La coppia `match_id, nome` e univoca ma sensibile a maiuscole, spazi e varianti
 del nome. Per le persone registrate sarebbe preferibile usare sempre
@@ -169,6 +183,7 @@ matches 1 ---- N statistiche N ---- 1 giocatori
 matches 1 ---- N disponibilita
 matches 1 ---- N foto
 giocatori 1 -- 0..1 contatti_giocatori
+matches 1 ---- N contatti_ospiti_disponibilita
 auth.users 1 -- 0..1 admin_users
 ```
 
