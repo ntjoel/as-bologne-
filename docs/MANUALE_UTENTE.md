@@ -1,6 +1,6 @@
 # Manuale di utilizzo
 
-Documento aggiornato il 14 giugno 2026.
+Documento aggiornato il 30 giugno 2026.
 
 ## Accesso
 
@@ -108,7 +108,10 @@ sono pubbliche e vengono mostrate nella dimensione originale.
    rispondere.
 6. Premere `Ajouter au calendrier`.
 7. Verificare che la partita compaia nell'elenco.
-8. Nel pannello WhatsApp che si apre, inviare il messaggio al gruppo oppure ai
+8. Se la spunta WhatsApp automatica e attiva e l'API e configurata, il sito
+   prova a inviare le notifiche a giocatori e staff.
+9. Nel pannello WhatsApp che si apre, controllare il risultato dell'invio. Se
+   l'API non e pronta, usare il pulsante per inviare al gruppo oppure ai
    singoli giocatori.
 
 Usare nomi coerenti per campo e avversario per evitare duplicati visivi.
@@ -177,15 +180,18 @@ persona potra inserirlo quando risponde alla disponibilita.
 Dopo la creazione di una partita il pannello `Prevenir tout le monde` si apre
 automaticamente.
 
+- `Envoi automatique a tous` usa la Edge Function Supabase e WhatsApp Business
+  Platform per inviare ai contatti che hanno telefono e consenso attivo;
 - `Envoyer a tous sur WhatsApp` apre WhatsApp con il messaggio pronto e
   permette di scegliere il gruppo della squadra;
 - `Envoyer` vicino a una persona apre direttamente la conversazione con lei;
 - `Telephone manquant` indica che la scheda della persona deve essere
   completata.
 
-Il browser non invia messaggi senza conferma. L'invio completamente automatico
-richiede WhatsApp Business Platform, consenso dei destinatari, template
-approvati e un servizio server separato.
+L'invio automatico funziona solo dopo la configurazione tecnica: account
+WhatsApp Business Platform, consenso dei destinatari, template approvato,
+segreti della Edge Function e migrazione dei log. Se questa configurazione
+manca, la partita viene comunque creata e resta disponibile l'invio manuale.
 
 Prima di eliminare una persona, verificare che non sia un omonimo. La
 cancellazione elimina anche le sue statistiche storiche.

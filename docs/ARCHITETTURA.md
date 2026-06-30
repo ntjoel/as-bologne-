@@ -1,6 +1,6 @@
 # Architettura e dati
 
-Documento aggiornato il 14 giugno 2026.
+Documento aggiornato il 30 giugno 2026.
 
 ## Panoramica
 
@@ -19,13 +19,13 @@ Vercel Static Hosting
 Supabase
   |-- PostgreSQL
   |-- Row Level Security
+  |-- Edge Function "notifica-whatsapp-partita"
   `-- Storage bucket "foto"
 ```
 
-Non esiste attualmente un backend applicativo. Il browser comunica direttamente
-con Supabase. Questa architettura puo essere valida solo se autorizzazione,
-validazione e limiti sono applicati sul database, su Storage o in Edge
-Functions.
+Il browser comunica direttamente con Supabase per dati e file. Per l'invio
+WhatsApp automatico viene aggiunta una Edge Function server-side, necessaria per
+non esporre il token WhatsApp nel codice pubblico.
 
 ## Componenti frontend
 
@@ -50,7 +50,9 @@ Functions.
 - crea, modifica ed elimina partite;
 - gestisce rosa, staff e presenze;
 - carica foto e logo;
-- aggiorna risultati e statistiche.
+- aggiorna risultati e statistiche;
+- invoca la Edge Function WhatsApp dopo la creazione di una partita, se
+  configurata.
 
 La versione pubblicata prima della migrazione del 14 giugno 2026 usava invece
 una password nel browser. Il nuovo accesso diventa operativo soltanto con il
@@ -176,6 +178,20 @@ L'eliminazione della riga non elimina automaticamente l'oggetto nello Storage.
 
 Tabella chiave-valore usata al momento per `logo_url`.
 
+### `notifiche_whatsapp`
+
+Log privato degli invii automatici via Edge Function:
+
+- partita;
+- persona notificata;
+- telefono usato;
+- stato: `inviato`, `errore` o `saltato`;
+- dettaglio tecnico o identificativo del messaggio;
+- data dell'invio.
+
+La tabella e accessibile solo agli amministratori autenticati. La Edge Function
+la scrive con chiave server.
+
 ## Relazioni
 
 ```text
@@ -184,6 +200,7 @@ matches 1 ---- N disponibilita
 matches 1 ---- N foto
 giocatori 1 -- 0..1 contatti_giocatori
 matches 1 ---- N contatti_ospiti_disponibilita
+matches 1 ---- N notifiche_whatsapp
 auth.users 1 -- 0..1 admin_users
 ```
 
@@ -240,7 +257,8 @@ La versione preparata mantiene il frontend statico e aggiunge:
 - RLS che consente scritture gestionali solo agli admin autenticati;
 - disponibilita con conferma visiva della persona e raccolta telefono se manca;
 - scadenza delle risposte controllata anche nel database;
-- contatti telefonici in una tabella privata.
+- contatti telefonici in una tabella privata;
+- Edge Function per invio automatico WhatsApp con token conservato come segreto.
 
 Restano consigliati:
 

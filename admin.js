@@ -5,6 +5,7 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const ADMIN_LOGIN_EMAIL = "j.ntiegoun@gmail.com";
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 let whatsappPlayers = [];
+let currentWhatsAppMatchId = null;
 
 document.addEventListener("DOMContentLoaded", async () => {
   applyStoredLogo();
@@ -317,6 +318,9 @@ window.addMatch = async function () {
   const { count } = await supabase.from("matches").select("*", { count: "exact", head: true });
   document.getElementById("adm-matches").textContent = count || 0;
   await showWhatsAppPanel(created.id);
+  if (document.getElementById("new-whatsapp-auto")?.checked) {
+    await window.sendWhatsAppAutomatic(created.id);
+  }
 };
 
 function buildWhatsAppMessage(match) {
@@ -385,11 +389,70 @@ window.showWhatsAppPanel = async function (matchId) {
   }
 
   const contactMap = Object.fromEntries(contacts.map(c => [c.giocatore_id, c]));
+  currentWhatsAppMatchId = match.id;
   whatsappPlayers = (players || []).map(p => ({ ...p, contact: contactMap[p.id] || null }));
   document.getElementById("whatsapp-message").value = buildWhatsAppMessage(match);
+  hideWhatsAppAutoStatus();
   document.getElementById("whatsapp-panel").classList.remove("section-hidden");
   refreshWhatsAppLinks();
   document.getElementById("whatsapp-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+};
+
+function hideWhatsAppAutoStatus() {
+  const el = document.getElementById("whatsapp-auto-status");
+  if (!el) return;
+  el.className = "whatsapp-auto-status section-hidden";
+  el.textContent = "";
+}
+
+function setWhatsAppAutoStatus(type, message) {
+  const el = document.getElementById("whatsapp-auto-status");
+  if (!el) return;
+  el.className = `whatsapp-auto-status whatsapp-auto-${type}`;
+  el.textContent = message;
+}
+
+function describeWhatsAppFunctionError(error, data) {
+  const code = data?.error || error?.message || "";
+
+  if (code.includes("CONFIGURATION_WHATSAPP_MANQUANTE")) {
+    return "API WhatsApp non configuree: il faut ajouter les secrets Supabase de WhatsApp.";
+  }
+
+  if (code.includes("FunctionsFetchError") || code.includes("404")) {
+    return "Fonction WhatsApp pas encore deployee. Le match est cree: utilise le bouton groupe pour l'instant.";
+  }
+
+  if (code.includes("ADMIN_NON_AUTORIZZATO") || code.includes("403")) {
+    return "Compte admin non autorise pour l'envoi automatique.";
+  }
+
+  return data?.message || error?.message || "Envoi automatique impossible.";
+}
+
+window.sendWhatsAppAutomatic = async function (matchId = currentWhatsAppMatchId) {
+  if (!matchId) {
+    setWhatsAppAutoStatus("error", "Selectionne une partita prima di inviare.");
+    return;
+  }
+
+  const btn = document.getElementById("whatsapp-auto-btn");
+  if (btn) btn.disabled = true;
+  setWhatsAppAutoStatus("warning", "Envoi automatique en cours...");
+
+  const { data, error } = await supabase.functions.invoke("notifica-whatsapp-partita", {
+    body: { match_id: Number(matchId) }
+  });
+
+  if (btn) btn.disabled = false;
+
+  if (error || data?.error) {
+    setWhatsAppAutoStatus("error", describeWhatsAppFunctionError(error, data));
+    return;
+  }
+
+  const message = `WhatsApp: ${data.sent || 0} envoye(s), ${data.skipped || 0} sans telephone/desactive(s), ${data.failed || 0} erreur(s).`;
+  setWhatsAppAutoStatus(data.failed ? "warning" : "success", message);
 };
 
 window.refreshWhatsAppLinks = function () {
@@ -438,6 +501,8 @@ window.shareWhatsAppMessage = function () {
 window.closeWhatsAppPanel = function () {
   document.getElementById("whatsapp-panel").classList.add("section-hidden");
   whatsappPlayers = [];
+  currentWhatsAppMatchId = null;
+  hideWhatsAppAutoStatus();
 };
 
 window.saveResult = async function () {

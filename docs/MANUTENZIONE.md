@@ -1,6 +1,6 @@
 # Guida di manutenzione
 
-Documento aggiornato il 14 giugno 2026.
+Documento aggiornato il 30 giugno 2026.
 
 ## Responsabilita
 
@@ -116,11 +116,12 @@ supabase_setup.sql
 aggiungi_staff_maglia.sql
 aggiungi_impostazioni.sql
 20260614_disponibilita_whatsapp.sql
+20260630_notifiche_whatsapp_automatiche.sql
 ```
 
-I primi tre file documentano lo schema storico. Il quarto e la migrazione
-necessaria per il frontend corrente. Per nuovi ambienti questa sequenza va
-sostituita in futuro con una baseline consolidata.
+I primi tre file documentano lo schema storico. Le migrazioni successive
+abilitano sicurezza, disponibilita, contatti e notifiche. Per nuovi ambienti
+questa sequenza va sostituita in futuro con una baseline consolidata.
 
 ## Deploy e rollback Vercel
 
@@ -165,7 +166,10 @@ Per distribuire la migrazione `20260614_disponibilita_whatsapp.sql`:
 11. creare e autorizzare l'account tecnico di produzione;
 12. pubblicare immediatamente il frontend compatibile;
 13. compilare i telefoni reali dal pannello admin;
-14. verificare che le scritture anonime dirette siano negate.
+14. applicare `20260630_notifiche_whatsapp_automatiche.sql`;
+15. configurare i segreti WhatsApp e pubblicare la Edge Function se si vuole
+    l'invio automatico;
+16. verificare che le scritture anonime dirette siano negate.
 
 L'ordine esatto deve essere provato in staging per evitare interruzioni.
 
@@ -176,23 +180,67 @@ scrivere.
 
 ## WhatsApp
 
-La versione inclusa usa i link ufficiali `wa.me` e richiede un tocco finale
-dell'amministratore. Il pulsante principale apre WhatsApp con il messaggio
-pronto: l'amministratore deve scegliere il gruppo della squadra e confermare
-l'invio. Non usa token e non invia messaggi in background.
+Il sito mantiene due modalita:
 
-Per l'invio completamente automatico servono:
+- invio manuale con link ufficiali `wa.me`, utile se l'API non e pronta;
+- invio automatico tramite Edge Function Supabase
+  `notifica-whatsapp-partita`.
+
+I link `wa.me` aprono WhatsApp con il messaggio pronto: l'amministratore deve
+scegliere il gruppo o la persona e confermare l'invio. Non usano token.
+
+L'invio automatico richiede:
 
 - account WhatsApp Business Platform;
-- consenso dei giocatori;
-- template approvati per i messaggi iniziati dal club;
-- backend o Edge Function;
+- numero WhatsApp Business collegato a Meta;
+- consenso dei giocatori e dello staff;
+- template approvato per i messaggi iniziati dal club;
+- Edge Function Supabase pubblicata;
 - token conservato come segreto server, mai in `admin.js`;
-- log degli invii e gestione degli errori.
+- migrazione `20260630_notifiche_whatsapp_automatiche.sql`.
 
-Riferimento per i link WhatsApp:
+Template consigliato:
 
-- <https://faq.whatsapp.com/425247423114725>
+```text
+Nome: as_bologne_match_invite
+Lingua: fr
+Categoria: Utility
+Corpo:
+Bonjour {{1}}, nouveau match A.S. Bologne contre {{2}} le {{3}} a {{4}}.
+Lieu: {{5}}. Reponds avant {{6}}. Donne ta reponse ici: {{7}}
+```
+
+Segreti da impostare nella Edge Function Supabase:
+
+```powershell
+supabase secrets set WHATSAPP_ACCESS_TOKEN="<TOKEN_META>"
+supabase secrets set WHATSAPP_PHONE_NUMBER_ID="<PHONE_NUMBER_ID>"
+supabase secrets set WHATSAPP_TEMPLATE_NAME="as_bologne_match_invite"
+supabase secrets set WHATSAPP_TEMPLATE_LANGUAGE="fr"
+supabase secrets set SITE_PUBLIC_URL="https://project-zxasn.vercel.app"
+```
+
+Deploy della funzione:
+
+```powershell
+supabase functions deploy notifica-whatsapp-partita
+```
+
+Per test controllato, Meta consente anche messaggi di testo dentro la finestra
+di servizio. In quel caso impostare temporaneamente:
+
+```powershell
+supabase secrets set WHATSAPP_MESSAGE_MODE="text"
+```
+
+In produzione lasciare la modalita template, perche i messaggi iniziati dal
+club fuori dalla finestra di servizio richiedono template approvati.
+
+Riferimenti:
+
+- link WhatsApp: <https://faq.whatsapp.com/425247423114725>
+- WhatsApp Business Platform: <https://whatsappbusiness.com/developers/developer-hub/>
+- Message API: <https://developers.facebook.com/documentation/business-messaging/whatsapp/reference/whatsapp-business-phone-number/message-api>
 
 Riferimenti ufficiali:
 

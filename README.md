@@ -37,7 +37,9 @@ Nel repository e stata preparata la migrazione
 - telefono facoltativo per persone fuori lista, salvato in tabella privata;
 - scadenza della raccolta disponibilita;
 - telefoni conservati in una tabella privata;
-- messaggi WhatsApp precompilati per il gruppo o per singole persone.
+- messaggi WhatsApp precompilati per il gruppo o per singole persone;
+- Edge Function Supabase per invio WhatsApp automatico, da attivare con
+  credenziali WhatsApp Business Platform salvate come segreti server.
 
 Questi file non devono essere distribuiti separatamente. Seguire la procedura
 di rilascio descritta in `docs/MANUTENZIONE.md`.
@@ -83,8 +85,11 @@ aggiungi_impostazioni.sql      Migrazione impostazioni/logo
                                Auth, telefoni, disponibilita, scadenze
 20260630_disponibilita_staff_telefono_opzionale.sql
                                Staff in disponibilita e telefono opzionale
+20260630_notifiche_whatsapp_automatiche.sql
+                               Log degli invii WhatsApp automatici
 autorizza_admin.sql            Autorizza l'account tecnico nel pannello
 popola_dati.sql                Dati dimostrativi, non usare in produzione
+supabase/functions/            Edge Functions Supabase
 docs/                          Documentazione operativa e tecnica
 ```
 

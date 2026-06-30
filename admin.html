@@ -15,6 +15,14 @@
       <div class="topbar-title">A.S. Bologne — Admin</div>
       <div class="topbar-sub">Pannello di controllo</div>
     </div>
+    <div class="topbar-cameroon">
+      <span class="cameroon-flag" role="img" aria-label="Drapeau du Cameroun">
+        <span class="flag-green"></span>
+        <span class="flag-red"><span class="flag-star">&#9733;</span></span>
+        <span class="flag-yellow"></span>
+      </span>
+      <span class="cameroon-label">Cameroun</span>
+    </div>
     <button class="topbar-back" onclick="window.location.href='index.html'"><i class="ti ti-arrow-left"></i> Sito</button>
   </div>
 
@@ -76,14 +84,22 @@
           <input type="datetime-local" id="new-scadenza">
           <div class="simple-help">Après cette date et cette heure, personne ne peut répondre.</div>
         </div>
+        <label class="checkbox-row">
+          <input type="checkbox" id="new-whatsapp-auto" checked>
+          <span>Envoyer automatiquement WhatsApp apres creation, si l'API est configuree</span>
+        </label>
         <button class="btn-primary" onclick="addMatch()"><i class="ti ti-plus"></i> Ajouter au calendrier</button>
         <div class="success-msg" id="match-success"><i class="ti ti-check"></i> Match ajouté !</div>
         <div class="err-msg" id="match-err">Date, adversaire et fin des réponses requis</div>
       </div>
       <div class="card whatsapp-panel section-hidden" id="whatsapp-panel">
         <div class="card-title"><i class="ti ti-brand-whatsapp"></i> Prévenir tout le monde</div>
-        <div class="simple-help" style="margin-bottom:10px;">Le message est prêt. Appuie sur le bouton vert, puis choisis le groupe WhatsApp de l'équipe.</div>
+        <div class="simple-help" style="margin-bottom:10px;">Le message est prêt. L'envoi automatique utilise l'API WhatsApp si elle est configuree; sinon, utilise le bouton de groupe.</div>
         <textarea id="whatsapp-message" rows="6" oninput="refreshWhatsAppLinks()"></textarea>
+        <button class="btn-whatsapp-auto" id="whatsapp-auto-btn" onclick="sendWhatsAppAutomatic()">
+          <i class="ti ti-send"></i> Envoi automatique a tous
+        </button>
+        <div id="whatsapp-auto-status" class="whatsapp-auto-status section-hidden"></div>
         <button class="btn-whatsapp-main" onclick="shareWhatsAppMessage()">
           <i class="ti ti-brand-whatsapp"></i> Envoyer à tous sur WhatsApp
         </button>
