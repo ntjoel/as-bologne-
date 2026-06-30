@@ -171,13 +171,13 @@ persona potra inserirlo quando risponde alla disponibilita.
 
 ### Inviare le notifiche WhatsApp
 
-Dopo la creazione di una partita il pannello `Prevenir les joueurs` si apre
+Dopo la creazione di una partita il pannello `Prevenir tout le monde` si apre
 automaticamente.
 
-- `Envoyer dans le groupe` apre WhatsApp con il messaggio pronto e permette di
-  scegliere il gruppo;
-- `Envoyer` vicino a un giocatore apre direttamente la conversazione con lui;
-- `Telephone manquant` indica che la scheda del giocatore deve essere
+- `Envoyer a tous sur WhatsApp` apre WhatsApp con il messaggio pronto e
+  permette di scegliere il gruppo della squadra;
+- `Envoyer` vicino a una persona apre direttamente la conversazione con lei;
+- `Telephone manquant` indica che la scheda della persona deve essere
   completata.
 
 Il browser non invia messaggi senza conferma. L'invio completamente automatico

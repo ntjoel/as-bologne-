@@ -81,13 +81,13 @@
         <div class="err-msg" id="match-err">Date, adversaire et fin des réponses requis</div>
       </div>
       <div class="card whatsapp-panel section-hidden" id="whatsapp-panel">
-        <div class="card-title"><i class="ti ti-brand-whatsapp"></i> Prévenir les joueurs</div>
-        <div class="simple-help" style="margin-bottom:10px;">Le message est prêt. Appuie sur le bouton vert pour ouvrir WhatsApp.</div>
+        <div class="card-title"><i class="ti ti-brand-whatsapp"></i> Prévenir tout le monde</div>
+        <div class="simple-help" style="margin-bottom:10px;">Le message est prêt. Appuie sur le bouton vert, puis choisis le groupe WhatsApp de l'équipe.</div>
         <textarea id="whatsapp-message" rows="6" oninput="refreshWhatsAppLinks()"></textarea>
         <button class="btn-whatsapp-main" onclick="shareWhatsAppMessage()">
-          <i class="ti ti-brand-whatsapp"></i> Envoyer dans le groupe
+          <i class="ti ti-brand-whatsapp"></i> Envoyer à tous sur WhatsApp
         </button>
-        <div class="divider-label">Ou envoyer à chaque joueur</div>
+        <div class="divider-label">Ou envoyer individuellement</div>
         <div id="whatsapp-player-list"></div>
         <button class="btn-outline" onclick="closeWhatsAppPanel()" style="margin-top:12px;"><i class="ti ti-x"></i> Fermer</button>
       </div>

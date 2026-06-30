@@ -36,7 +36,7 @@ Nel repository e stata preparata la migrazione
   manca;
 - scadenza della raccolta disponibilita;
 - telefoni conservati in una tabella privata;
-- messaggi WhatsApp precompilati per gruppo o singoli giocatori.
+- messaggi WhatsApp precompilati per il gruppo o per singole persone.
 
 Questi file non devono essere distribuiti separatamente. Seguire la procedura
 di rilascio descritta in `docs/MANUTENZIONE.md`.

@@ -176,7 +176,9 @@ scrivere.
 ## WhatsApp
 
 La versione inclusa usa i link ufficiali `wa.me` e richiede un tocco finale
-dell'amministratore. Non usa token e non invia messaggi in background.
+dell'amministratore. Il pulsante principale apre WhatsApp con il messaggio
+pronto: l'amministratore deve scegliere il gruppo della squadra e confermare
+l'invio. Non usa token e non invia messaggi in background.
 
 Per l'invio completamente automatico servono:
 
