@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 320" aria-label="Carte du Cameroun">
+  <!-- Country outline derived from Natural Earth 1:110m Admin-0 Countries, public domain / CC0. -->
+  <defs>
+    <path id="cameroon-shape" d="M 191.62,156.54 L 178.07,183.85 L 171.6,188.74 L 169.52,209.64 L 172.2,220.99 L 170.03,229.02 L 182.77,243.09 L 185.07,252.77 L 195.02,266.67 L 207.34,275.35 L 208.54,287.64 L 211.39,295.45 L 209.45,310 L 188.03,303.63 L 166.24,296.52 L 132.23,295.46 L 128.88,293.99 L 112.93,297.46 L 96.55,293.85 L 83.74,295.63 L 39.88,295.01 L 43.82,273.73 L 33.29,255.92 L 20.99,251.34 L 15.52,239.27 L 8.61,235.4 L 8.92,227.96 L 15.86,208.88 L 28.67,182.88 L 36.48,182.64 L 52.53,166.87 L 62.74,166.42 L 77.87,177.49 L 96.39,168.41 L 98.91,157.21 L 104.96,146.36 L 109.14,132.72 L 123.55,121.62 L 128.99,102.75 L 134.71,96.75 L 138.51,82.74 L 145.63,65.54 L 168.33,44.69 L 169.76,35.73 L 172.69,30.86 L 162.03,20.13 L 162.89,11.55 L 170.5,10 L 181.22,27.26 L 183.02,45.14 L 182.03,63.04 L 196.7,87.54 L 181.65,87.27 L 174.04,89.19 L 161.76,86.48 L 155.91,99.2 L 171.81,114.93 L 183.55,119.51 L 187.35,130.66 L 195.84,149.24 L 191.62,156.54 Z"/>
+    <clipPath id="cameroon-clip">
+      <use href="#cameroon-shape"/>
+    </clipPath>
+    <linearGradient id="stadium-green" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#4f9d58"/>
+      <stop offset="0.52" stop-color="#117a4f"/>
+      <stop offset="1" stop-color="#0a5f3d"/>
+    </linearGradient>
+  </defs>
+
+  <g clip-path="url(#cameroon-clip)">
+    <rect width="220" height="320" fill="url(#stadium-green)"/>
+    <g opacity="0.28">
+      <rect x="0" y="0" width="220" height="28" fill="#ffffff"/>
+      <rect x="0" y="56" width="220" height="28" fill="#ffffff"/>
+      <rect x="0" y="112" width="220" height="28" fill="#ffffff"/>
+      <rect x="0" y="168" width="220" height="28" fill="#ffffff"/>
+      <rect x="0" y="224" width="220" height="28" fill="#ffffff"/>
+      <rect x="0" y="280" width="220" height="28" fill="#ffffff"/>
+    </g>
+    <rect x="73.3" width="73.4" height="320" fill="#ce1126" opacity="0.28"/>
+    <rect x="146.7" width="73.3" height="320" fill="#fcd116" opacity="0.24"/>
+    <g fill="none" stroke="#ffffff" stroke-width="4" opacity="0.42">
+      <path d="M110 8v304"/>
+      <circle cx="110" cy="160" r="44"/>
+      <rect x="35" y="26" width="150" height="268" rx="24"/>
+      <path d="M36 96h38v128H36M184 96h-38v128h38"/>
+    </g>
+    <polygon points="110,129 117,151 140,151 121,164 128,187 110,173 92,187 99,164 80,151 103,151" fill="#fcd116" opacity="0.95"/>
+  </g>
+
+  <use href="#cameroon-shape" fill="none" stroke="#ffffff" stroke-width="8" opacity="0.62"/>
+  <use href="#cameroon-shape" fill="none" stroke="#007a5e" stroke-width="3" opacity="0.88"/>
+</svg>
