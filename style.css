@@ -9,9 +9,71 @@ body {
     radial-gradient(1200px 500px at 50% -200px, rgba(26,42,94,0.18), transparent 70%),
     repeating-linear-gradient(90deg, rgba(26,42,94,0.018) 0 38px, rgba(26,42,94,0) 38px 76px);
   min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
 }
 
 /* TOPBAR — hero header del club */
+@media (min-width: 1180px) {
+  body::before,
+  body::after {
+    content: "";
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    width: max(0px, calc((100vw - 880px) / 2));
+    pointer-events: none;
+    opacity: 0.82;
+    background:
+      radial-gradient(circle at 50% 28%, rgba(255,255,255,0.85) 0 2px, transparent 3px),
+      radial-gradient(circle at 50% 28%, transparent 0 58px, rgba(255,255,255,0.26) 59px 61px, transparent 62px),
+      linear-gradient(90deg, transparent 0 49%, rgba(255,255,255,0.22) 49% 51%, transparent 51%),
+      linear-gradient(180deg, transparent 0 22%, rgba(255,255,255,0.16) 22% 22.5%, transparent 22.5% 77.5%, rgba(255,255,255,0.16) 77.5% 78%, transparent 78%),
+      radial-gradient(220px 320px at 50% 44%, rgba(206,17,38,0.18), transparent 68%),
+      linear-gradient(145deg, rgba(0,122,94,0.22), rgba(26,42,94,0.04) 48%, rgba(252,209,22,0.18)),
+      repeating-linear-gradient(90deg, rgba(255,255,255,0.14) 0 1px, transparent 1px 44px),
+      linear-gradient(180deg, #eaf2eb, #eef1f8 45%, #eaf2eb);
+    z-index: 0;
+  }
+
+  body::before { left: 0; }
+  body::after {
+    right: 0;
+    transform: scaleX(-1);
+  }
+
+  .topbar,
+  .nav,
+  .content,
+  .photo-viewer {
+    position: relative;
+    z-index: 1;
+  }
+
+  .content::before,
+  .content::after {
+    content: "";
+    position: fixed;
+    top: 148px;
+    width: 180px;
+    height: 360px;
+    pointer-events: none;
+    opacity: 0.12;
+    z-index: 0;
+    background:
+      radial-gradient(circle at 50% 16%, #111827 0 28px, transparent 29px),
+      radial-gradient(ellipse at 50% 36%, #111827 0 58px, transparent 59px),
+      linear-gradient(100deg, transparent 0 35%, #111827 36% 43%, transparent 44%),
+      linear-gradient(80deg, transparent 0 56%, #111827 57% 64%, transparent 65%),
+      linear-gradient(110deg, transparent 0 42%, #111827 43% 49%, transparent 50%),
+      linear-gradient(70deg, transparent 0 51%, #111827 52% 58%, transparent 59%);
+  }
+
+  .content::before { left: max(28px, calc((100vw - 880px) / 4 - 90px)); }
+  .content::after { right: max(28px, calc((100vw - 880px) / 4 - 90px)); transform: scaleX(-1); }
+  .content > * { position: relative; z-index: 1; }
+}
+
 .topbar {
   background: linear-gradient(135deg, #1a2a5e 0%, #243a7e 55%, #1a2a5e 100%);
   padding: 16px 18px;
