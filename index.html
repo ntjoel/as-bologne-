@@ -142,6 +142,15 @@
 
   </div>
 
+  <div id="player-stats-viewer" class="player-stats-viewer section-hidden" role="dialog" aria-modal="true" aria-label="Statistiques joueur" onclick="closePlayerStats()">
+    <div class="player-stats-card" onclick="stopPlayerStatsClick(event)">
+      <button type="button" class="player-stats-close" onclick="closePlayerStats()" aria-label="Fermer">
+        <i class="ti ti-x"></i>
+      </button>
+      <div id="player-stats-content"></div>
+    </div>
+  </div>
+
   <div id="photo-viewer" class="photo-viewer section-hidden" role="dialog" aria-modal="true" aria-label="Photo agrandie">
     <div class="photo-viewer-toolbar">
       <button type="button" class="photo-viewer-btn" onclick="zoomGalleryPhoto(-0.25)" aria-label="Reduire">

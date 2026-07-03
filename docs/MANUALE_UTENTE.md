@@ -88,6 +88,10 @@ La scheda `Stats` contiene:
 - `Buts & Passes`: gol, assist e contributi totali;
 - `Cartons`: cartellini gialli e rossi.
 
+Toccando o cliccando il nome/foto di un giocatore si apre la sua scheda
+dettagliata con presenze, percentuale di partecipazione, gol, assist,
+cartellini e riepilogo partita per partita.
+
 Il numero mostrato nella tabella presenze rappresenta la maglia utilizzata in
 quella partita. Il segno di spunta indica una presenza senza numero registrato.
 

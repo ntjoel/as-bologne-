@@ -22,6 +22,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 document.addEventListener("keydown", event => {
+  const playerViewerOpen = !document.getElementById("player-stats-viewer")?.classList.contains("section-hidden");
+  if (playerViewerOpen && event.key === "Escape") {
+    window.closePlayerStats();
+    return;
+  }
   if (document.getElementById("photo-viewer")?.classList.contains("section-hidden")) return;
   if (event.key === "Escape") window.closeGalleryPhoto();
   if (event.key === "+" || event.key === "=") window.zoomGalleryPhoto(0.25);
@@ -364,6 +369,9 @@ function showAvailError(message) {
 
 // ---- STATISTICHE con foto e presenze ----
 let currentStatType = 'presenze';
+let statPlayers = [];
+let statPlayedMatches = [];
+let statMapCurrent = {};
 
 window.switchStat = function (type, btn) {
   document.querySelectorAll('#sec-statistiche .tab-sub-btn').forEach(b => b.classList.remove('active'));
@@ -378,7 +386,7 @@ async function loadStats() {
   el.innerHTML = '<div class="empty-msg">Chargement...</div>';
 
   const { data: players, error: pe } = await supabase.from("giocatori").select("*").eq("attivo", true).eq("tipo", "giocatore").order("nome");
-  const { data: matches, error: me } = await supabase.from("matches").select("id, avversario, data, stato").order("data");
+  const { data: matches, error: me } = await supabase.from("matches").select("id, avversario, data, stato, risultato, orario, campo").order("data");
 
   if (pe || me || !players || !players.length) {
     el.innerHTML = '<div class="empty-msg">Nessun giocatore ancora. Aggiungili dal pannello admin.</div>';
@@ -394,6 +402,9 @@ async function loadStats() {
   const { data: stats } = await supabase.from("statistiche").select("*");
   const statMap = {};
   (stats || []).forEach(s => { statMap[`${s.giocatore_id}_${s.match_id}`] = s; });
+  statPlayers = players || [];
+  statPlayedMatches = playedMatches;
+  statMapCurrent = statMap;
 
   const titles = { presenze: 'Présences joueurs', gol: 'Buts & Passes décisives', cartellini: 'Cartons' };
   const icons = { presenze: 'ti-clipboard-check', gol: 'ti-ball-football', cartellini: 'ti-cards' };
@@ -402,18 +413,21 @@ async function loadStats() {
   const posCol = { G: 'badge-navy', D: 'badge-navy', M: 'badge-gold', A: 'badge-red' };
 
   function playerCell(p) {
+    const safeName = escapeHtml(p.nome);
+    const safePhoto = escapeHtml(p.foto_url || '');
+    const safePos = escapeHtml(p.posizione || '-');
     const photoUrl = p.foto_url
-      ? `<img src="${p.foto_url}" class="player-photo" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">`
+      ? `<img src="${safePhoto}" class="player-photo" alt="${safeName}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">`
       : '';
-    const initials = p.nome.split(' ').map(x => x[0]).join('').toUpperCase();
-    return `<div class="player-cell">
+    const initials = escapeHtml(p.nome.split(' ').map(x => x[0]).join('').toUpperCase().slice(0, 3) || '?');
+    return `<button type="button" class="player-cell player-cell-click" onclick="openPlayerStats(${p.id})" aria-label="Voir les statistiques de ${safeName}">
       ${photoUrl}
       <div class="avatar" style="${p.foto_url ? 'display:none' : ''}">${initials}</div>
       <div class="player-info">
-        <div class="player-name">${p.nome}</div>
-        <span class="badge ${posCol[p.posizione] || 'badge-navy'}" style="font-size:10px">${p.posizione}</span>
+        <div class="player-name">${safeName}</div>
+        <span class="badge ${posCol[p.posizione] || 'badge-navy'}" style="font-size:10px">${safePos}</span>
       </div>
-    </div>`;
+    </button>`;
   }
 
   let html = '';
@@ -423,7 +437,9 @@ async function loadStats() {
     html = `<div style="overflow-x:auto;"><table class="stat-table-full"><thead><tr><th class="th-player">Joueur</th>`;
     playedMatches.forEach(m => {
       const d = new Date(m.data + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-      html += `<th class="th-match" title="${m.avversario}">${d}<br><span style="font-size:10px;font-weight:normal;">${m.avversario.split(' ')[0]}</span></th>`;
+      const safeAvv = escapeHtml(m.avversario || '');
+      const shortAvv = escapeHtml((m.avversario || '').split(' ')[0]);
+      html += `<th class="th-match" title="${safeAvv}">${d}<br><span style="font-size:10px;font-weight:normal;">${shortAvv}</span></th>`;
     });
     html += `<th class="th-total">Total</th><th class="th-total" style="background:#1a7a1a !important">%</th></tr></thead><tbody>`;
 
@@ -531,6 +547,107 @@ async function loadStats() {
 
   el.innerHTML = html;
 }
+
+function playerStatTotals(playerId) {
+  return statPlayedMatches.reduce((totals, match) => {
+    const s = statMapCurrent[`${playerId}_${match.id}`];
+    if (s?.presente) totals.presenze += 1;
+    if (!s?.presente) totals.assenze += 1;
+    totals.gol += s?.gol || 0;
+    totals.assist += s?.assist || 0;
+    totals.gialli += s?.gialli || 0;
+    totals.rossi += s?.rossi || 0;
+    return totals;
+  }, { presenze: 0, assenze: 0, gol: 0, assist: 0, gialli: 0, rossi: 0 });
+}
+
+function playerAvatarHtml(player, sizeClass = '') {
+  const safeName = escapeHtml(player.nome || '');
+  const initials = escapeHtml((player.nome || '?').split(' ').filter(Boolean).map(x => x[0]).join('').toUpperCase().slice(0, 3) || '?');
+  if (player.foto_url) {
+    return `<img src="${escapeHtml(player.foto_url)}" class="player-stats-photo ${sizeClass}" alt="${safeName}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+      <div class="player-stats-avatar ${sizeClass}" style="display:none">${initials}</div>`;
+  }
+  return `<div class="player-stats-avatar ${sizeClass}">${initials}</div>`;
+}
+
+function playerMatchDetailHtml(playerId) {
+  if (!statPlayedMatches.length) {
+    return '<div class="empty-msg">Aucune partita jouee.</div>';
+  }
+
+  return statPlayedMatches.map(match => {
+    const s = statMapCurrent[`${playerId}_${match.id}`];
+    const presente = !!s?.presente;
+    const date = new Date(match.data + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+    const extras = [];
+    if (presente && s?.numero_maglia) extras.push(`Maillot ${escapeHtml(s.numero_maglia)}`);
+    if (s?.gol) extras.push(`${s.gol} but${s.gol > 1 ? 's' : ''}`);
+    if (s?.assist) extras.push(`${s.assist} passe${s.assist > 1 ? 's' : ''}`);
+    if (s?.gialli) extras.push(`${s.gialli} jaune${s.gialli > 1 ? 's' : ''}`);
+    if (s?.rossi) extras.push(`${s.rossi} rouge${s.rossi > 1 ? 's' : ''}`);
+    const matchInfo = [
+      match.orario || '',
+      match.campo || '',
+      match.risultato || ''
+    ].filter(Boolean).map(escapeHtml).join(' · ');
+
+    return `<div class="player-match-row ${presente ? 'present' : 'absent'}">
+      <div class="player-match-date">${date}</div>
+      <div>
+        <div class="player-match-title">${escapeHtml(match.avversario)}</div>
+        <div class="player-match-detail">${matchInfo || 'Match joue'}${extras.length ? ' · ' + extras.join(' · ') : ''}</div>
+      </div>
+      <span class="badge player-match-state ${presente ? 'badge-win' : 'badge-loss'}">${presente ? 'Present' : 'Absent'}</span>
+    </div>`;
+  }).join('');
+}
+
+window.openPlayerStats = function (playerId) {
+  const player = statPlayers.find(p => p.id === playerId);
+  if (!player) return;
+
+  const totals = playerStatTotals(playerId);
+  const pct = statPlayedMatches.length ? Math.round((totals.presenze / statPlayedMatches.length) * 100) : 0;
+  const safeName = escapeHtml(player.nome);
+  const safePos = escapeHtml(player.posizione || '-');
+  const posCol = { G: 'badge-navy', D: 'badge-navy', M: 'badge-gold', A: 'badge-red' };
+
+  document.getElementById("player-stats-content").innerHTML = `
+    <div class="player-stats-head">
+      ${playerAvatarHtml(player)}
+      <div>
+        <div class="player-stats-name">${safeName}</div>
+        <span class="badge ${posCol[player.posizione] || 'badge-navy'}">${safePos}</span>
+      </div>
+    </div>
+    <div class="player-stats-metrics">
+      <div class="player-stats-metric"><strong>${totals.presenze}</strong><span>Presences</span></div>
+      <div class="player-stats-metric"><strong>${pct}%</strong><span>Participation</span></div>
+      <div class="player-stats-metric"><strong>${totals.gol}</strong><span>Buts</span></div>
+      <div class="player-stats-metric"><strong>${totals.assist}</strong><span>Passes</span></div>
+      <div class="player-stats-metric"><strong>${totals.gialli}</strong><span>Jaunes</span></div>
+      <div class="player-stats-metric"><strong>${totals.rossi}</strong><span>Rouges</span></div>
+      <div class="player-stats-metric"><strong>${totals.assenze}</strong><span>Absences</span></div>
+      <div class="player-stats-metric"><strong>${statPlayedMatches.length}</strong><span>Matches</span></div>
+    </div>
+    <div class="card-title" style="margin-top:18px;margin-bottom:6px;"><i class="ti ti-list-check"></i> Participation par match</div>
+    <div class="player-match-list">${playerMatchDetailHtml(playerId)}</div>
+  `;
+
+  document.getElementById("player-stats-viewer").classList.remove("section-hidden");
+  document.body.classList.add("modal-open");
+};
+
+window.closePlayerStats = function () {
+  document.getElementById("player-stats-viewer").classList.add("section-hidden");
+  document.getElementById("player-stats-content").innerHTML = '';
+  document.body.classList.remove("modal-open");
+};
+
+window.stopPlayerStatsClick = function (event) {
+  event.stopPropagation();
+};
 
 // ---- GALLERIA ----
 async function loadGalleria() {

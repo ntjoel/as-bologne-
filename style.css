@@ -200,11 +200,34 @@ input:focus, select:focus { border-color: #1a2a5e; }
 .td-pres { font-size: 16px; }
 .td-total { font-weight: bold; color: #1a2a5e; background: #e8ecf7; }
 .player-cell { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
+.player-cell-click { width: 100%; border: none; background: transparent; color: inherit; cursor: pointer; text-align: left; border-radius: 10px; padding: 5px; font: inherit; transition: background 0.12s, transform 0.12s; }
+.player-cell-click:hover { background: #eef2fb; transform: translateX(2px); }
+.player-cell-click:focus-visible { outline: 2px solid #f0c030; outline-offset: 2px; }
 .player-info { display: flex; flex-direction: column; gap: 2px; }
 .player-name { font-weight: bold; font-size: 13px; white-space: nowrap; }
 .pres-si { color: #27500a; font-size: 18px; font-weight: bold; }
 .pres-no { color: #c0001e; font-size: 18px; font-weight: bold; }
 .pres-maglia { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 24px; padding: 0 5px; background: #1a2a5e; color: white; border-radius: 6px; font-size: 12px; font-weight: bold; }
+
+/* DETTAGLIO GIOCATORE */
+.player-stats-viewer { position: fixed; inset: 0; z-index: 1000; background: rgba(8,13,28,0.74); padding: 18px; overflow-y: auto; display: flex; align-items: flex-start; justify-content: center; }
+.player-stats-card { position: relative; width: min(720px, 100%); margin: 30px auto; background: white; border-radius: 18px; padding: 18px; box-shadow: 0 16px 50px rgba(8,13,28,0.32); }
+.player-stats-close { position: absolute; top: 12px; right: 12px; width: 38px; height: 38px; border-radius: 10px; border: 1px solid #d1d5db; background: white; color: #1a2a5e; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+.player-stats-head { display: flex; align-items: center; gap: 14px; padding-right: 44px; margin-bottom: 14px; }
+.player-stats-photo { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 3px solid #f0c030; flex-shrink: 0; }
+.player-stats-avatar { width: 64px; height: 64px; border-radius: 50%; background: #1a2a5e; color: white; display: flex; align-items: center; justify-content: center; font-family: 'Oswald', Arial, sans-serif; font-size: 22px; font-weight: bold; border: 3px solid #f0c030; flex-shrink: 0; }
+.player-stats-name { font-family: 'Oswald', Arial, sans-serif; color: #1a2a5e; font-size: 24px; font-weight: 700; letter-spacing: 0.4px; }
+.player-stats-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 14px 0; }
+.player-stats-metric { padding: 12px; border-radius: 13px; background: #f4f6fb; border: 1px solid #e8ebf3; }
+.player-stats-metric strong { display: block; font-family: 'Oswald', Arial, sans-serif; color: #1a2a5e; font-size: 24px; line-height: 1; }
+.player-stats-metric span { display: block; margin-top: 5px; color: #7a8298; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; }
+.player-match-list { margin-top: 12px; border-top: 1px solid #edf0f5; }
+.player-match-row { display: grid; grid-template-columns: 92px 1fr auto; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid #edf0f5; }
+.player-match-date { color: #7a8298; font-size: 12px; font-weight: bold; }
+.player-match-title { font-size: 14px; font-weight: bold; color: #1c2333; }
+.player-match-detail { margin-top: 3px; color: #7a8298; font-size: 12px; }
+.player-match-state { min-width: 78px; justify-content: center; }
+.player-match-row.absent { opacity: 0.78; }
 
 /* PRESENZE ADMIN */
 .pres-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
@@ -292,4 +315,9 @@ input:focus, select:focus { border-color: #1a2a5e; }
   .photo-viewer { padding: 8px; }
   .photo-viewer-btn { flex: 1 1 auto; min-width: 54px; }
   .photo-viewer-download { flex-basis: 150px; }
+  .player-stats-viewer { padding: 10px; }
+  .player-stats-card { margin: 12px auto; padding: 14px; }
+  .player-stats-metrics { grid-template-columns: repeat(2, 1fr); }
+  .player-match-row { grid-template-columns: 1fr; gap: 5px; }
+  .player-match-state { width: fit-content; }
 }
