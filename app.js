@@ -14,6 +14,7 @@ let currentGalleryZoom = 1;
 
 document.addEventListener("DOMContentLoaded", async () => {
   applyStoredLogo();
+  applyMatchPhotoBackground();
   await loadMatches();
   const requestedMatch = parseInt(new URLSearchParams(window.location.search).get("match"));
   if (requestedMatch && allMatches.some(m => m.id === requestedMatch)) {
@@ -41,6 +42,31 @@ async function applyStoredLogo() {
       document.querySelectorAll('.topbar-crest img').forEach(img => { img.src = data.valore; });
     }
   } catch (e) { /* tabella non ancora creata, ignora */ }
+}
+
+function cssBackgroundUrl(url) {
+  const safeUrl = String(url || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  return `url("${safeUrl}")`;
+}
+
+async function applyMatchPhotoBackground() {
+  try {
+    const { data } = await supabase
+      .from("foto")
+      .select("url")
+      .order("created_at", { ascending: false })
+      .limit(1);
+    const photo = (data || []).find(f => f.url);
+    if (!photo) return;
+
+    document.documentElement.style.setProperty("--match-bg-image", cssBackgroundUrl(photo.url));
+    document.documentElement.style.setProperty(
+      "--match-bg-overlay",
+      "linear-gradient(180deg, rgba(238,241,248,0.86), rgba(238,241,248,0.94))"
+    );
+  } catch (e) {
+    /* nessuna foto o tabella non pronta: mantieni lo sfondo standard */
+  }
 }
 
 // ---- MATCHES ----

@@ -9,6 +9,7 @@ let currentWhatsAppMatchId = null;
 
 document.addEventListener("DOMContentLoaded", async () => {
   applyStoredLogo();
+  applyMatchPhotoBackground();
   const { data } = await supabase.auth.getSession();
   if (data.session) await showPanel();
 });
@@ -21,6 +22,31 @@ async function applyStoredLogo() {
       document.querySelectorAll('.topbar-crest img, .admin-icon img').forEach(img => { img.src = data.valore; });
     }
   } catch (e) { /* tabella impostazioni non ancora creata, ignora */ }
+}
+
+function cssBackgroundUrl(url) {
+  const safeUrl = String(url || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  return `url("${safeUrl}")`;
+}
+
+async function applyMatchPhotoBackground() {
+  try {
+    const { data } = await supabase
+      .from("foto")
+      .select("url")
+      .order("created_at", { ascending: false })
+      .limit(1);
+    const photo = (data || []).find(f => f.url);
+    if (!photo) return;
+
+    document.documentElement.style.setProperty("--match-bg-image", cssBackgroundUrl(photo.url));
+    document.documentElement.style.setProperty(
+      "--match-bg-overlay",
+      "linear-gradient(180deg, rgba(238,241,248,0.86), rgba(238,241,248,0.94))"
+    );
+  } catch (e) {
+    /* nessuna foto o tabella non pronta: mantieni lo sfondo standard */
+  }
 }
 
 // ---- AUTH SUPABASE ----
@@ -1056,6 +1082,7 @@ window.uploadFoto = async function () {
   document.getElementById("foto-caption").value = '';
   showMsg('foto-success');
   await loadFotoAdmin();
+  applyMatchPhotoBackground();
 };
 
 function showMsg(id) {

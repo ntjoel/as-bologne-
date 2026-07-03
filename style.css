@@ -1,13 +1,23 @@
 @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&display=swap');
 
+:root {
+  --match-bg-image: linear-gradient(transparent, transparent);
+  --match-bg-overlay: linear-gradient(transparent, transparent);
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
   font-family: Arial, sans-serif;
   color: #1c2333;
   background-color: #eef1f8;
   background-image:
+    var(--match-bg-overlay),
+    var(--match-bg-image),
     radial-gradient(1200px 500px at 50% -200px, rgba(26,42,94,0.18), transparent 70%),
     repeating-linear-gradient(90deg, rgba(26,42,94,0.018) 0 38px, rgba(26,42,94,0) 38px 76px);
+  background-size: auto, cover, auto, auto;
+  background-position: center, center top, 50% -200px, 0 0;
+  background-attachment: scroll, fixed, scroll, scroll;
   min-height: 100vh;
   overflow-x: hidden;
   position: relative;
@@ -304,6 +314,7 @@ input:focus, select:focus { border-color: #1a2a5e; }
 .admin-icon img { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
 
 @media (max-width: 500px) {
+  body { background-attachment: scroll, scroll, scroll, scroll; }
   .form-grid { grid-template-columns: 1fr; }
   .metrics { grid-template-columns: repeat(2, 1fr); }
   .tab-sub-btn { font-size: 12px; padding: 6px 10px; }

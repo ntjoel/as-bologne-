@@ -110,6 +110,10 @@ Per vedere meglio una foto:
 Le fotografie sono pubbliche. Il download puo aprire la foto in una nuova
 scheda se il browser blocca il salvataggio diretto.
 
+L'ultima foto caricata viene usata automaticamente come sfondo leggero del
+sito. Quando si carica una nuova foto, lo sfondo si aggiorna al prossimo
+caricamento della pagina.
+
 ## Pannello amministrativo
 
 ### Aggiungere una partita
@@ -218,6 +222,9 @@ cancellazione elimina anche le sue statistiche storiche.
 4. Inserire una didascalia facoltativa.
 5. Premere `Envoyer les photos`.
 6. Verificare le immagini nell'elenco e nel sito pubblico.
+
+La foto piu recente diventa anche lo sfondo leggero del sito e del pannello
+admin.
 
 Formato operativo consigliato:
 
