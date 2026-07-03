@@ -712,6 +712,213 @@ window.loadPresenze = async function () {
   wrap.innerHTML = html;
 };
 
+function pdfSafeText(value) {
+  return String(value ?? '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function pdfMatchDate(value) {
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function calcPlayerPdfTotals(playerId, matches, statMap) {
+  return matches.reduce((totals, match) => {
+    const s = statMap[`${playerId}_${match.id}`];
+    if (s?.presente) totals.presences += 1;
+    if (!s?.presente) totals.absences += 1;
+    totals.buts += s?.gol || 0;
+    totals.passes += s?.assist || 0;
+    totals.jaunes += s?.gialli || 0;
+    totals.rouges += s?.rossi || 0;
+    return totals;
+  }, { presences: 0, absences: 0, buts: 0, passes: 0, jaunes: 0, rouges: 0 });
+}
+
+window.downloadPlayersStatsPdf = async function () {
+  const btn = document.querySelector(".btn-stat-pdf");
+  const originalHtml = btn?.innerHTML;
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ti ti-loader-2"></i> Préparation du PDF...';
+  }
+
+  try {
+    const { data: isAdmin, error: adminError } = await supabase.rpc("is_admin");
+    if (adminError || !isAdmin) {
+      alert("Téléchargement réservé aux administrateurs.");
+      return;
+    }
+
+    const PdfConstructor = window.jspdf?.jsPDF;
+    if (!PdfConstructor) {
+      alert("Le module PDF n'est pas encore charge. Recharge la page puis reessaie.");
+      return;
+    }
+
+    const [
+      { data: players, error: playersError },
+      { data: matches, error: matchesError },
+      { data: stats, error: statsError }
+    ] = await Promise.all([
+      supabase.from("giocatori").select("*").eq("attivo", true).eq("tipo", "giocatore").order("nome"),
+      supabase.from("matches").select("id, avversario, data, stato, risultato, orario, campo").eq("stato", "passata").order("data"),
+      supabase.from("statistiche").select("*")
+    ]);
+
+    if (playersError || matchesError || statsError) {
+      alert("Impossible de lire les statistiques.");
+      return;
+    }
+
+    if (!players?.length || !matches?.length) {
+      alert("Aucune statistique à télécharger pour le moment.");
+      return;
+    }
+
+    const statMap = {};
+    (stats || []).forEach(s => { statMap[`${s.giocatore_id}_${s.match_id}`] = s; });
+
+    const doc = new PdfConstructor({ unit: 'mm', format: 'a4' });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 12;
+    const bottom = 12;
+    const contentWidth = pageWidth - (margin * 2);
+    let y = 34;
+
+    function ensurePage(extraHeight = 8) {
+      if (y + extraHeight > pageHeight - bottom) {
+        doc.addPage();
+        y = 16;
+      }
+    }
+
+    function setColor(color) {
+      doc.setTextColor(color[0], color[1], color[2]);
+    }
+
+    function writeLine(value, options = {}) {
+      const size = options.size || 9;
+      const style = options.style || 'normal';
+      const color = options.color || [28, 35, 51];
+      const x = options.x || margin;
+      const width = options.width || contentWidth - (x - margin);
+      const step = Math.max(4.2, size * 0.42 + 1.2);
+      const lines = doc.splitTextToSize(pdfSafeText(value) || '-', width);
+
+      ensurePage(lines.length * step + (options.after || 0));
+      doc.setFont('helvetica', style);
+      doc.setFontSize(size);
+      setColor(color);
+      doc.text(lines, x, y);
+      y += lines.length * step + (options.after || 0);
+    }
+
+    doc.setFillColor(26, 42, 94);
+    doc.rect(0, 0, pageWidth, 26, 'F');
+    doc.setFillColor(240, 192, 48);
+    doc.rect(0, 26, pageWidth, 2, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.setTextColor(255, 255, 255);
+    doc.text('A.S. Bologne', margin, 11);
+    doc.setFontSize(10);
+    doc.text('Statistiques completes des joueurs', margin, 19);
+
+    const exportDate = new Date().toLocaleDateString('fr-FR');
+    writeLine(`Export admin du ${exportDate} | Joueurs: ${players.length} | Matches joues: ${matches.length}`, {
+      size: 9,
+      color: [98, 107, 128],
+      after: 3
+    });
+
+    const teamTotals = players.reduce((totals, player) => {
+      const playerTotals = calcPlayerPdfTotals(player.id, matches, statMap);
+      totals.presences += playerTotals.presences;
+      totals.buts += playerTotals.buts;
+      totals.passes += playerTotals.passes;
+      totals.jaunes += playerTotals.jaunes;
+      totals.rouges += playerTotals.rouges;
+      return totals;
+    }, { presences: 0, buts: 0, passes: 0, jaunes: 0, rouges: 0 });
+
+    writeLine(`Resume equipe: ${teamTotals.presences} presences, ${teamTotals.buts} buts, ${teamTotals.passes} passes, ${teamTotals.jaunes} jaunes, ${teamTotals.rouges} rouges.`, {
+      size: 9,
+      style: 'bold',
+      after: 5
+    });
+
+    players.forEach((player, index) => {
+      const totals = calcPlayerPdfTotals(player.id, matches, statMap);
+      const pct = matches.length ? Math.round((totals.presences / matches.length) * 100) : 0;
+      const playerName = pdfSafeText(player.nome || 'Joueur');
+      const position = pdfSafeText(player.posizione || '-');
+
+      ensurePage(36);
+      doc.setFillColor(244, 246, 251);
+      doc.rect(margin, y - 5, contentWidth, 19, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.setTextColor(26, 42, 94);
+      doc.text(`${index + 1}. ${playerName}`, margin + 3, y + 1);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(98, 107, 128);
+      doc.text(`Poste: ${position} | Participation: ${totals.presences}/${matches.length} (${pct}%)`, margin + 3, y + 8);
+      y += 19;
+
+      writeLine(`Buts: ${totals.buts} | Passes: ${totals.passes} | Jaunes: ${totals.jaunes} | Rouges: ${totals.rouges} | Absences: ${totals.absences}`, {
+        size: 8,
+        style: 'bold',
+        after: 1
+      });
+
+      matches.forEach(match => {
+        const s = statMap[`${player.id}_${match.id}`];
+        const present = !!s?.presente;
+        const extras = [];
+        if (present && s?.numero_maglia) extras.push(`Maillot ${s.numero_maglia}`);
+        if (s?.gol) extras.push(`Buts ${s.gol}`);
+        if (s?.assist) extras.push(`Passes ${s.assist}`);
+        if (s?.gialli) extras.push(`Jaunes ${s.gialli}`);
+        if (s?.rossi) extras.push(`Rouges ${s.rossi}`);
+
+        const matchInfo = [
+          pdfMatchDate(match.data),
+          match.avversario || 'Match',
+          present ? 'Present' : 'Absent',
+          match.risultato || '',
+          extras.join(', ')
+        ].filter(Boolean).join(' - ');
+
+        writeLine(matchInfo, {
+          x: margin + 4,
+          width: contentWidth - 4,
+          size: 7.6,
+          color: present ? [39, 80, 10] : [121, 31, 31]
+        });
+      });
+
+      y += 4;
+    });
+
+    const filenameDate = new Date().toISOString().slice(0, 10);
+    doc.save(`as-bologne-statistiques-joueurs-${filenameDate}.pdf`);
+  } catch (error) {
+    console.error(error);
+    alert("Impossible de créer le PDF pour le moment.");
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = originalHtml;
+    }
+  }
+};
+
 // Aggiunge rapidamente un giocatore che ha dato disponibilità
 window.quickAddPlayer = async function (nome, phone = '') {
   const { data: created, error } = await supabase

@@ -171,6 +171,10 @@ Il salvataggio imposta lo stato della partita su `passata`.
 I campi vengono salvati al cambio di valore. Dopo la compilazione, ricaricare
 la pagina e controllare alcuni record per confermare il salvataggio.
 
+Il pulsante `Télécharger PDF joueurs` e disponibile solo nel pannello
+amministratore. Scarica un PDF con le statistiche complete di tutti i
+giocatori: riepilogo generale e dettaglio partita per partita.
+
 ### Gestire giocatori e staff
 
 Per aggiungere una persona:

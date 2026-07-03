@@ -161,6 +161,9 @@ input:focus, select:focus { border-color: #1a2a5e; }
 .tab-sub { display: flex; gap: 6px; flex-wrap: wrap; }
 .tab-sub-btn { padding: 7px 14px; font-size: 13px; border-radius: 20px; border: 1px solid #d1d5db; background: none; cursor: pointer; color: #666; display: flex; align-items: center; gap: 5px; }
 .tab-sub-btn.active { background: #1a2a5e; color: white; border-color: transparent; font-weight: bold; }
+.stat-actions { margin: -2px 0 14px; padding: 10px; border: 1px solid #e0e6f4; border-radius: 12px; background: #f4f6fb; }
+.btn-stat-pdf { width: 100%; justify-content: center; background: white; color: #1a2a5e; border-color: #c9d2ea; font-weight: bold; }
+.btn-stat-pdf:disabled { opacity: 0.65; cursor: wait; }
 
 .avail-item { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
 .avail-item:last-child { border-bottom: none; }

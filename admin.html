@@ -130,6 +130,12 @@
           <label class="form-lbl">Seleziona partita</label>
           <select id="pres-match-select" onchange="loadPresenze()"><option value="">-- Seleziona --</option></select>
         </div>
+        <div class="stat-actions">
+          <button type="button" class="btn-outline btn-stat-pdf" onclick="downloadPlayersStatsPdf()">
+            <i class="ti ti-file-type-pdf"></i> Télécharger PDF joueurs
+          </button>
+          <div class="simple-help">Riservato agli amministratori: scarica tutte le statistiche dei giocatori.</div>
+        </div>
       </div>
       <div id="presenze-table-wrap"></div>
     </div>
@@ -250,6 +256,7 @@
 
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script type="module" src="admin.js"></script>
 </body>
 </html>

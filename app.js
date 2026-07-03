@@ -410,6 +410,9 @@ async function loadStats() {
   const el = document.getElementById("stat-content");
   const titleEl = document.getElementById("stat-title");
   el.innerHTML = '<div class="empty-msg">Chargement...</div>';
+  statPlayers = [];
+  statPlayedMatches = [];
+  statMapCurrent = {};
 
   const { data: players, error: pe } = await supabase.from("giocatori").select("*").eq("attivo", true).eq("tipo", "giocatore").order("nome");
   const { data: matches, error: me } = await supabase.from("matches").select("id, avversario, data, stato, risultato, orario, campo").order("data");
