@@ -23,16 +23,16 @@ body {
     bottom: 0;
     width: max(0px, calc((100vw - 880px) / 2));
     pointer-events: none;
-    opacity: 0.82;
+    opacity: 0.9;
     background:
       radial-gradient(circle at 50% 28%, rgba(255,255,255,0.85) 0 2px, transparent 3px),
       radial-gradient(circle at 50% 28%, transparent 0 58px, rgba(255,255,255,0.26) 59px 61px, transparent 62px),
       linear-gradient(90deg, transparent 0 49%, rgba(255,255,255,0.22) 49% 51%, transparent 51%),
       linear-gradient(180deg, transparent 0 22%, rgba(255,255,255,0.16) 22% 22.5%, transparent 22.5% 77.5%, rgba(255,255,255,0.16) 77.5% 78%, transparent 78%),
-      radial-gradient(220px 320px at 50% 44%, rgba(206,17,38,0.18), transparent 68%),
-      linear-gradient(145deg, rgba(0,122,94,0.22), rgba(26,42,94,0.04) 48%, rgba(252,209,22,0.18)),
+      radial-gradient(220px 320px at 50% 44%, rgba(0,122,94,0.22), transparent 68%),
+      linear-gradient(145deg, rgba(0,122,94,0.28), rgba(72,151,84,0.16) 48%, rgba(252,209,22,0.14)),
       repeating-linear-gradient(90deg, rgba(255,255,255,0.14) 0 1px, transparent 1px 44px),
-      linear-gradient(180deg, #eaf2eb, #eef1f8 45%, #eaf2eb);
+      linear-gradient(180deg, #dcefe1, #eef1f8 45%, #dcefe1);
     z-index: 0;
   }
 
@@ -54,23 +54,40 @@ body {
   .content::after {
     content: "";
     position: fixed;
-    top: 148px;
-    width: 180px;
-    height: 360px;
+    top: 126px;
+    width: 210px;
+    height: 420px;
     pointer-events: none;
-    opacity: 0.12;
+    opacity: 0.24;
     z-index: 0;
+    clip-path: polygon(
+      45% 0,
+      62% 5%,
+      57% 17%,
+      72% 27%,
+      62% 41%,
+      74% 52%,
+      59% 64%,
+      55% 82%,
+      45% 100%,
+      33% 84%,
+      37% 63%,
+      27% 52%,
+      35% 36%,
+      29% 22%,
+      39% 11%
+    );
     background:
-      radial-gradient(circle at 50% 16%, #111827 0 28px, transparent 29px),
-      radial-gradient(ellipse at 50% 36%, #111827 0 58px, transparent 59px),
-      linear-gradient(100deg, transparent 0 35%, #111827 36% 43%, transparent 44%),
-      linear-gradient(80deg, transparent 0 56%, #111827 57% 64%, transparent 65%),
-      linear-gradient(110deg, transparent 0 42%, #111827 43% 49%, transparent 50%),
-      linear-gradient(70deg, transparent 0 51%, #111827 52% 58%, transparent 59%);
+      radial-gradient(circle at 50% 43%, rgba(252,209,22,0.95) 0 10px, transparent 11px),
+      linear-gradient(90deg, transparent 0 48%, rgba(255,255,255,0.28) 48% 52%, transparent 52%),
+      radial-gradient(circle at 50% 50%, transparent 0 58px, rgba(255,255,255,0.23) 59px 61px, transparent 62px),
+      repeating-linear-gradient(90deg, rgba(255,255,255,0.16) 0 1px, transparent 1px 22px),
+      linear-gradient(90deg, rgba(0,122,94,0.95) 0 35%, rgba(206,17,38,0.88) 35% 66%, rgba(252,209,22,0.9) 66% 100%);
+    filter: drop-shadow(0 16px 28px rgba(0, 64, 38, 0.16));
   }
 
-  .content::before { left: max(28px, calc((100vw - 880px) / 4 - 90px)); }
-  .content::after { right: max(28px, calc((100vw - 880px) / 4 - 90px)); transform: scaleX(-1); }
+  .content::before { left: max(22px, calc((100vw - 880px) / 4 - 105px)); }
+  .content::after { right: max(22px, calc((100vw - 880px) / 4 - 105px)); transform: scaleX(-1); }
   .content > * { position: relative; z-index: 1; }
 }
 
