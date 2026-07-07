@@ -394,9 +394,10 @@ function showAvailError(message) {
 }
 
 // ---- STATISTICHE con foto e presenze ----
-let currentStatType = 'presenze';
+let currentStatType = 'eventi';
 let statPlayers = [];
 let statPlayedMatches = [];
+let statEventGroups = [];
 let statMapCurrent = {};
 
 window.switchStat = function (type, btn) {
@@ -406,12 +407,53 @@ window.switchStat = function (type, btn) {
   loadStats();
 };
 
+function groupMatchesByEvent(matches) {
+  const eventMap = new Map();
+  (matches || []).forEach(match => {
+    const key = match.data || `match-${match.id}`;
+    if (!eventMap.has(key)) {
+      eventMap.set(key, { key, date: match.data, matches: [] });
+    }
+    eventMap.get(key).matches.push(match);
+  });
+
+  return Array.from(eventMap.values())
+    .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')))
+    .map(eventGroup => {
+      eventGroup.matches.sort((a, b) =>
+        String(a.orario || '').localeCompare(String(b.orario || '')) ||
+        String(a.avversario || '').localeCompare(String(b.avversario || ''))
+      );
+      eventGroup.label = eventGroup.date
+        ? new Date(eventGroup.date + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+        : 'Événement';
+      eventGroup.title = eventGroup.matches
+        .map(match => `${match.orario ? match.orario + ' - ' : ''}${match.avversario || 'Match'}`)
+        .join(' / ');
+      return eventGroup;
+    });
+}
+
+function playerMatchCountInEvent(playerId, eventGroup, statMap = statMapCurrent) {
+  return eventGroup.matches.reduce((total, match) => {
+    const s = statMap[`${playerId}_${match.id}`];
+    return total + (s?.presente ? 1 : 0);
+  }, 0);
+}
+
+function eventPresenceCellHtml(playerId, eventGroup, statMap = statMapCurrent) {
+  const presentMatches = playerMatchCountInEvent(playerId, eventGroup, statMap);
+  if (!presentMatches) return '<span class="pres-no">✗</span>';
+  return `<span class="event-pres-si"><span class="pres-si">✓</span><span class="event-match-count">${presentMatches}/${eventGroup.matches.length}</span></span>`;
+}
+
 async function loadStats() {
   const el = document.getElementById("stat-content");
   const titleEl = document.getElementById("stat-title");
   el.innerHTML = '<div class="empty-msg">Chargement...</div>';
   statPlayers = [];
   statPlayedMatches = [];
+  statEventGroups = [];
   statMapCurrent = {};
 
   const { data: players, error: pe } = await supabase.from("giocatori").select("*").eq("attivo", true).eq("tipo", "giocatore").order("nome");
@@ -431,12 +473,14 @@ async function loadStats() {
   const { data: stats } = await supabase.from("statistiche").select("*");
   const statMap = {};
   (stats || []).forEach(s => { statMap[`${s.giocatore_id}_${s.match_id}`] = s; });
+  const eventGroups = groupMatchesByEvent(playedMatches);
   statPlayers = players || [];
   statPlayedMatches = playedMatches;
+  statEventGroups = eventGroups;
   statMapCurrent = statMap;
 
-  const titles = { presenze: 'Présences joueurs', gol: 'Buts & Passes décisives', cartellini: 'Cartons' };
-  const icons = { presenze: 'ti-clipboard-check', gol: 'ti-ball-football', cartellini: 'ti-cards' };
+  const titles = { eventi: 'Participation événements', presenze: 'Présences par match', gol: 'Buts & Passes décisives', cartellini: 'Cartons' };
+  const icons = { eventi: 'ti-calendar-event', presenze: 'ti-clipboard-check', gol: 'ti-ball-football', cartellini: 'ti-cards' };
   titleEl.innerHTML = `<i class="ti ${icons[currentStatType]}"></i> ${titles[currentStatType]}`;
 
   const posCol = { G: 'badge-navy', D: 'badge-navy', M: 'badge-gold', A: 'badge-red' };
@@ -461,8 +505,64 @@ async function loadStats() {
 
   let html = '';
 
+  // ---------- EVENTI: una giornata/torneo conta come un evento ----------
+  if (currentStatType === 'eventi') {
+    html = `<div style="overflow-x:auto;"><table class="stat-table-full"><thead><tr><th class="th-player">Joueur</th>`;
+    eventGroups.forEach(eventGroup => {
+      const safeTitle = escapeHtml(eventGroup.title || 'Événement');
+      html += `<th class="th-match" title="${safeTitle}">${eventGroup.label}<br><span style="font-size:10px;font-weight:normal;">${eventGroup.matches.length} match${eventGroup.matches.length > 1 ? 's' : ''}</span></th>`;
+    });
+    html += `<th class="th-total">Total</th><th class="th-total" style="background:#1a7a1a !important">%</th></tr></thead><tbody>`;
+
+    players.forEach(p => {
+      html += `<tr><td class="td-player">${playerCell(p)}</td>`;
+      let total = 0;
+      eventGroups.forEach(eventGroup => {
+        const presentMatches = playerMatchCountInEvent(p.id, eventGroup, statMap);
+        if (presentMatches > 0) total++;
+        html += `<td class="td-pres">${eventPresenceCellHtml(p.id, eventGroup, statMap)}</td>`;
+      });
+      const pct = Math.round(total / eventGroups.length * 100);
+      html += `<td class="td-total">${total}</td><td class="td-total" style="background:#eaf3de;color:#27500a">${pct}%</td></tr>`;
+    });
+    html += '</tbody></table></div>';
+    html += '<div style="font-size:11px;color:#888;margin-top:8px;">Un événement correspond aux matchs joués le même jour. Exemple: 2/3 signifie présent à 2 matchs sur 3 dans cet événement.</div>';
+
+    const { data: staff } = await supabase.from("giocatori").select("*").eq("attivo", true).eq("tipo", "staff").order("ruolo");
+    if (staff && staff.length) {
+      html += '<div style="margin-top:18px;"><div class="card-title" style="margin-bottom:10px;"><i class="ti ti-briefcase"></i> Staff — événements</div>';
+      staff.forEach(p => {
+        const initials = escapeHtml(p.nome.split(' ').map(x => x[0]).join('').toUpperCase());
+        const safeName = escapeHtml(p.nome);
+        const safeRole = escapeHtml(p.ruolo || 'Staff');
+        const safePhoto = escapeHtml(p.foto_url || '');
+        let total = 0;
+        eventGroups.forEach(eventGroup => {
+          if (playerMatchCountInEvent(p.id, eventGroup, statMap) > 0) total++;
+        });
+        const pct = eventGroups.length ? Math.round(total / eventGroups.length * 100) : 0;
+        html += `<div class="avail-item">
+          <div style="display:flex;align-items:center;gap:10px;flex:1">
+            ${p.foto_url
+              ? `<img src="${safePhoto}" class="player-photo-sm" onerror="this.style.display='none'">`
+              : `<div class="avatar" style="background:#633806">${initials}</div>`}
+            <div>
+              <div style="font-weight:500">${safeName}</div>
+              <span class="badge badge-gold" style="font-size:10px">${safeRole}</span>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:13px;color:#888;">${total}/${eventGroups.length}</span>
+            <span class="badge" style="background:#eaf3de;color:#27500a;">${pct}%</span>
+          </div>
+        </div>`;
+      });
+      html += '</div>';
+    }
+  }
+
   // ---------- PRESENZE: griglia per partita + % ----------
-  if (currentStatType === 'presenze') {
+  else if (currentStatType === 'presenze') {
     html = `<div style="overflow-x:auto;"><table class="stat-table-full"><thead><tr><th class="th-player">Joueur</th>`;
     playedMatches.forEach(m => {
       const d = new Date(m.data + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
@@ -590,6 +690,19 @@ function playerStatTotals(playerId) {
   }, { presenze: 0, assenze: 0, gol: 0, assist: 0, gialli: 0, rossi: 0 });
 }
 
+function playerEventTotals(playerId) {
+  return statEventGroups.reduce((totals, eventGroup) => {
+    const presentMatches = playerMatchCountInEvent(playerId, eventGroup);
+    if (presentMatches > 0) {
+      totals.presenze += 1;
+      totals.partite += presentMatches;
+    } else {
+      totals.assenze += 1;
+    }
+    return totals;
+  }, { presenze: 0, assenze: 0, partite: 0 });
+}
+
 function playerAvatarHtml(player, sizeClass = '') {
   const safeName = escapeHtml(player.nome || '');
   const initials = escapeHtml((player.nome || '?').split(' ').filter(Boolean).map(x => x[0]).join('').toUpperCase().slice(0, 3) || '?');
@@ -637,7 +750,8 @@ window.openPlayerStats = function (playerId) {
   if (!player) return;
 
   const totals = playerStatTotals(playerId);
-  const pct = statPlayedMatches.length ? Math.round((totals.presenze / statPlayedMatches.length) * 100) : 0;
+  const eventTotals = playerEventTotals(playerId);
+  const eventPct = statEventGroups.length ? Math.round((eventTotals.presenze / statEventGroups.length) * 100) : 0;
   const safeName = escapeHtml(player.nome);
   const safePos = escapeHtml(player.posizione || '-');
   const posCol = { G: 'badge-navy', D: 'badge-navy', M: 'badge-gold', A: 'badge-red' };
@@ -651,14 +765,14 @@ window.openPlayerStats = function (playerId) {
       </div>
     </div>
     <div class="player-stats-metrics">
-      <div class="player-stats-metric"><strong>${totals.presenze}</strong><span>Presences</span></div>
-      <div class="player-stats-metric"><strong>${pct}%</strong><span>Participation</span></div>
+      <div class="player-stats-metric"><strong>${eventTotals.presenze}</strong><span>Evenements</span></div>
+      <div class="player-stats-metric"><strong>${eventPct}%</strong><span>Participation events</span></div>
+      <div class="player-stats-metric"><strong>${totals.presenze}</strong><span>Matchs joues</span></div>
       <div class="player-stats-metric"><strong>${totals.gol}</strong><span>Buts</span></div>
       <div class="player-stats-metric"><strong>${totals.assist}</strong><span>Passes</span></div>
       <div class="player-stats-metric"><strong>${totals.gialli}</strong><span>Jaunes</span></div>
       <div class="player-stats-metric"><strong>${totals.rossi}</strong><span>Rouges</span></div>
-      <div class="player-stats-metric"><strong>${totals.assenze}</strong><span>Absences</span></div>
-      <div class="player-stats-metric"><strong>${statPlayedMatches.length}</strong><span>Matches</span></div>
+      <div class="player-stats-metric"><strong>${eventTotals.assenze}</strong><span>Absences events</span></div>
     </div>
     <div class="card-title" style="margin-top:18px;margin-bottom:6px;"><i class="ti ti-list-check"></i> Participation par match</div>
     <div class="player-match-list">${playerMatchDetailHtml(playerId)}</div>

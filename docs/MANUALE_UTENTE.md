@@ -84,12 +84,14 @@ direttamente il responsabile della squadra.
 
 La scheda `Stats` contiene:
 
-- `Presences`: presenza per partita, totale e percentuale;
+- `Evenements`: partecipazione agli eventi, dove tutte le partite giocate
+  nello stesso giorno contano come un solo evento;
+- `Matches`: presenza per partita, totale e percentuale;
 - `Buts & Passes`: gol, assist e contributi totali;
 - `Cartons`: cartellini gialli e rossi.
 
 Toccando o cliccando il nome/foto di un giocatore si apre la sua scheda
-dettagliata con presenze, percentuale di partecipazione, gol, assist,
+dettagliata con partecipazione agli eventi, partite giocate, gol, assist,
 cartellini e riepilogo partita per partita.
 
 Il numero mostrato nella tabella presenze rappresenta la maglia utilizzata in
@@ -257,7 +259,7 @@ Verificare sempre:
 2. conteggio delle partite;
 3. visualizzazione dell'ultima partita;
 4. invio di una disponibilita di prova autorizzata;
-5. apertura delle tre sezioni statistiche;
+5. apertura delle quattro sezioni statistiche;
 6. caricamento delle foto;
 7. accesso e uscita dall'admin;
 8. corretto funzionamento da telefono.

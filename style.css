@@ -221,6 +221,8 @@ input:focus, select:focus { border-color: #1a2a5e; }
 .pres-si { color: #27500a; font-size: 18px; font-weight: bold; }
 .pres-no { color: #c0001e; font-size: 18px; font-weight: bold; }
 .pres-maglia { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 24px; padding: 0 5px; background: #1a2a5e; color: white; border-radius: 6px; font-size: 12px; font-weight: bold; }
+.event-pres-si { display: inline-flex; align-items: center; justify-content: center; gap: 3px; flex-direction: column; line-height: 1; }
+.event-match-count { font-size: 10px; color: #626b80; font-weight: bold; }
 
 /* DETTAGLIO GIOCATORE */
 .player-stats-viewer { position: fixed; inset: 0; z-index: 1000; background: rgba(8,13,28,0.74); padding: 18px; overflow-y: auto; display: flex; align-items: flex-start; justify-content: center; }

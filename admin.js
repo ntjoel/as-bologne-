@@ -724,17 +724,49 @@ function pdfMatchDate(value) {
   return date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
-function calcPlayerPdfTotals(playerId, matches, statMap) {
-  return matches.reduce((totals, match) => {
+function groupPdfMatchesByEvent(matches) {
+  const eventMap = new Map();
+  (matches || []).forEach(match => {
+    const key = match.data || `match-${match.id}`;
+    if (!eventMap.has(key)) eventMap.set(key, { key, date: match.data, matches: [] });
+    eventMap.get(key).matches.push(match);
+  });
+  return Array.from(eventMap.values())
+    .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')))
+    .map(eventGroup => {
+      eventGroup.matches.sort((a, b) =>
+        String(a.orario || '').localeCompare(String(b.orario || '')) ||
+        String(a.avversario || '').localeCompare(String(b.avversario || ''))
+      );
+      return eventGroup;
+    });
+}
+
+function countPdfMatchesInEvent(playerId, eventGroup, statMap) {
+  return eventGroup.matches.reduce((total, match) => {
     const s = statMap[`${playerId}_${match.id}`];
-    if (s?.presente) totals.presences += 1;
-    if (!s?.presente) totals.absences += 1;
-    totals.buts += s?.gol || 0;
-    totals.passes += s?.assist || 0;
-    totals.jaunes += s?.gialli || 0;
-    totals.rouges += s?.rossi || 0;
-    return totals;
-  }, { presences: 0, absences: 0, buts: 0, passes: 0, jaunes: 0, rouges: 0 });
+    return total + (s?.presente ? 1 : 0);
+  }, 0);
+}
+
+function calcPlayerPdfTotals(playerId, matches, eventGroups, statMap) {
+  const totals = matches.reduce((acc, match) => {
+    const s = statMap[`${playerId}_${match.id}`];
+    if (s?.presente) acc.matchPresences += 1;
+    if (!s?.presente) acc.matchAbsences += 1;
+    acc.buts += s?.gol || 0;
+    acc.passes += s?.assist || 0;
+    acc.jaunes += s?.gialli || 0;
+    acc.rouges += s?.rossi || 0;
+    return acc;
+  }, { eventPresences: 0, eventAbsences: 0, matchPresences: 0, matchAbsences: 0, buts: 0, passes: 0, jaunes: 0, rouges: 0 });
+
+  eventGroups.forEach(eventGroup => {
+    if (countPdfMatchesInEvent(playerId, eventGroup, statMap) > 0) totals.eventPresences += 1;
+    else totals.eventAbsences += 1;
+  });
+
+  return totals;
 }
 
 window.downloadPlayersStatsPdf = async function () {
@@ -781,6 +813,7 @@ window.downloadPlayersStatsPdf = async function () {
 
     const statMap = {};
     (stats || []).forEach(s => { statMap[`${s.giocatore_id}_${s.match_id}`] = s; });
+    const eventGroups = groupPdfMatchesByEvent(matches);
 
     const doc = new PdfConstructor({ unit: 'mm', format: 'a4' });
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -830,31 +863,32 @@ window.downloadPlayersStatsPdf = async function () {
     doc.text('Statistiques completes des joueurs', margin, 19);
 
     const exportDate = new Date().toLocaleDateString('fr-FR');
-    writeLine(`Export admin du ${exportDate} | Joueurs: ${players.length} | Matches joues: ${matches.length}`, {
+    writeLine(`Export admin du ${exportDate} | Joueurs: ${players.length} | Evenements: ${eventGroups.length} | Matches joues: ${matches.length}`, {
       size: 9,
       color: [98, 107, 128],
       after: 3
     });
 
     const teamTotals = players.reduce((totals, player) => {
-      const playerTotals = calcPlayerPdfTotals(player.id, matches, statMap);
-      totals.presences += playerTotals.presences;
+      const playerTotals = calcPlayerPdfTotals(player.id, matches, eventGroups, statMap);
+      totals.eventPresences += playerTotals.eventPresences;
+      totals.matchPresences += playerTotals.matchPresences;
       totals.buts += playerTotals.buts;
       totals.passes += playerTotals.passes;
       totals.jaunes += playerTotals.jaunes;
       totals.rouges += playerTotals.rouges;
       return totals;
-    }, { presences: 0, buts: 0, passes: 0, jaunes: 0, rouges: 0 });
+    }, { eventPresences: 0, matchPresences: 0, buts: 0, passes: 0, jaunes: 0, rouges: 0 });
 
-    writeLine(`Resume equipe: ${teamTotals.presences} presences, ${teamTotals.buts} buts, ${teamTotals.passes} passes, ${teamTotals.jaunes} jaunes, ${teamTotals.rouges} rouges.`, {
+    writeLine(`Resume equipe: ${teamTotals.eventPresences} participations evenement, ${teamTotals.matchPresences} presences match, ${teamTotals.buts} buts, ${teamTotals.passes} passes, ${teamTotals.jaunes} jaunes, ${teamTotals.rouges} rouges.`, {
       size: 9,
       style: 'bold',
       after: 5
     });
 
     players.forEach((player, index) => {
-      const totals = calcPlayerPdfTotals(player.id, matches, statMap);
-      const pct = matches.length ? Math.round((totals.presences / matches.length) * 100) : 0;
+      const totals = calcPlayerPdfTotals(player.id, matches, eventGroups, statMap);
+      const pct = eventGroups.length ? Math.round((totals.eventPresences / eventGroups.length) * 100) : 0;
       const playerName = pdfSafeText(player.nome || 'Joueur');
       const position = pdfSafeText(player.posizione || '-');
 
@@ -868,10 +902,10 @@ window.downloadPlayersStatsPdf = async function () {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
       doc.setTextColor(98, 107, 128);
-      doc.text(`Poste: ${position} | Participation: ${totals.presences}/${matches.length} (${pct}%)`, margin + 3, y + 8);
+      doc.text(`Poste: ${position} | Participation events: ${totals.eventPresences}/${eventGroups.length} (${pct}%) | Matchs joues: ${totals.matchPresences}/${matches.length}`, margin + 3, y + 8);
       y += 19;
 
-      writeLine(`Buts: ${totals.buts} | Passes: ${totals.passes} | Jaunes: ${totals.jaunes} | Rouges: ${totals.rouges} | Absences: ${totals.absences}`, {
+      writeLine(`Buts: ${totals.buts} | Passes: ${totals.passes} | Jaunes: ${totals.jaunes} | Rouges: ${totals.rouges} | Absences events: ${totals.eventAbsences}`, {
         size: 8,
         style: 'bold',
         after: 1

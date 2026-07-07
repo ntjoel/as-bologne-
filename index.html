@@ -125,12 +125,13 @@
     <!-- STATISTICHE -->
     <div id="sec-statistiche" class="section-hidden">
       <div class="tab-sub">
-        <button class="tab-sub-btn active" onclick="switchStat('presenze', this)">Présences</button>
+        <button class="tab-sub-btn active" onclick="switchStat('eventi', this)">Événements</button>
+        <button class="tab-sub-btn" onclick="switchStat('presenze', this)">Matches</button>
         <button class="tab-sub-btn" onclick="switchStat('gol', this)">Buts & Passes</button>
         <button class="tab-sub-btn" onclick="switchStat('cartellini', this)">Cartons</button>
       </div>
       <div class="card">
-        <div class="card-title" id="stat-title"><i class="ti ti-chart-bar"></i> Présences joueurs</div>
+        <div class="card-title" id="stat-title"><i class="ti ti-chart-bar"></i> Participation événements</div>
         <div id="stat-content"><div class="empty-msg">Chargement...</div></div>
       </div>
     </div>
