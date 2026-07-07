@@ -1293,16 +1293,81 @@ async function loadFotoMatchSelect() {
   await loadFotoAdmin();
 }
 
+// Versione admin con pulsante di eliminazione per ogni foto.
 async function loadFotoAdmin() {
-  const { data: foto } = await supabase.from("foto").select("*, matches(avversario, data)").order("created_at", { ascending: false }).limit(20);
+  const { data: foto } = await supabase
+    .from("foto")
+    .select("*, matches(avversario, data)")
+    .order("created_at", { ascending: false })
+    .limit(20);
   const el = document.getElementById("foto-list");
-  if (!foto || !foto.length) { el.innerHTML = '<div class="empty-msg">Nessuna foto ancora.</div>'; return; }
+  if (!foto || !foto.length) {
+    el.innerHTML = '<div class="empty-msg">Nessuna foto ancora.</div>';
+    return;
+  }
+
   el.innerHTML = '<div class="photo-grid">' + foto.map(f => {
-    return `<div class="photo-thumb">
-      <img src="${f.url}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" onerror="this.parentElement.innerHTML='📷'">
+    const safeUrl = escapeHtml(f.url || '');
+    const safeCaption = escapeHtml(f.didascalia || '');
+    const matchLabel = f.matches
+      ? `${new Date(f.matches.data + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} - ${f.matches.avversario}`
+      : 'Photo';
+    return `<div class="photo-thumb admin-photo-thumb" id="foto-row-${f.id}">
+      <img src="${safeUrl}" alt="${safeCaption || 'Photo A.S. Bologne'}" onerror="this.classList.add('section-hidden');this.nextElementSibling.classList.remove('section-hidden');">
+      <i class="ti ti-photo photo-fallback section-hidden"></i>
+      <div class="admin-photo-info">
+        <span>${escapeHtml(matchLabel)}</span>
+        ${safeCaption ? `<small>${safeCaption}</small>` : ''}
+      </div>
+      <button type="button" class="admin-photo-delete" data-url="${safeUrl}" onclick="deleteFoto(${f.id}, this.dataset.url)" title="Supprimer la photo" aria-label="Supprimer la photo">
+        <i class="ti ti-trash"></i>
+      </button>
     </div>`;
   }).join('') + '</div>';
 }
+
+function storagePathFromPublicUrl(url) {
+  try {
+    const parsed = new URL(url);
+    const marker = '/storage/v1/object/public/foto/';
+    const markerIndex = parsed.pathname.indexOf(marker);
+    if (markerIndex === -1) return null;
+    return decodeURIComponent(parsed.pathname.slice(markerIndex + marker.length));
+  } catch (error) {
+    return null;
+  }
+}
+
+window.deleteFoto = async function (id, url) {
+  if (!confirm("Supprimer cette photo du site ?")) return;
+
+  const row = document.getElementById(`foto-row-${id}`);
+  row?.classList.add("deleting");
+
+  try {
+    const storagePath = storagePathFromPublicUrl(url);
+    if (storagePath) {
+      const { error: storageError } = await supabase.storage.from('foto').remove([storagePath]);
+      if (storageError) console.warn("Storage non supprimé:", storageError.message);
+    }
+
+    const { error } = await supabase.from("foto").delete().eq("id", id);
+    if (error) {
+      document.getElementById("foto-delete-err").textContent = "Erreur suppression photo: " + error.message;
+      showMsg('foto-delete-err');
+      row?.classList.remove("deleting");
+      return;
+    }
+
+    showMsg('foto-delete-success');
+    await loadFotoAdmin();
+    applyMatchPhotoBackground();
+  } catch (error) {
+    document.getElementById("foto-delete-err").textContent = "Erreur suppression photo: " + error.message;
+    showMsg('foto-delete-err');
+    row?.classList.remove("deleting");
+  }
+};
 
 window.uploadFoto = async function () {
   const matchId = document.getElementById("foto-match-select").value;

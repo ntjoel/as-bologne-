@@ -232,6 +232,11 @@ cancellazione elimina anche le sue statistiche storiche.
 La foto piu recente diventa anche lo sfondo leggero del sito e del pannello
 admin.
 
+Per eliminare una foto non desiderata, aprire `Photos`, trovare la miniatura
+nell'elenco `Photos existantes`, premere il cestino rosso e confermare. La foto
+viene rimossa dal sito; se era usata come sfondo, al prossimo caricamento verra
+usata un'altra foto recente disponibile.
+
 Formato operativo consigliato:
 
 - JPEG o WebP;
