@@ -1,6 +1,6 @@
 # Guida di manutenzione
 
-Documento aggiornato il 30 giugno 2026.
+Documento aggiornato il 17 luglio 2026.
 
 ## Responsabilita
 
@@ -65,10 +65,14 @@ creare duplicati.
 
 - backup database completato;
 - migrazione SQL provata in staging;
+- inventario delle migrazioni gia applicate in produzione verificato;
 - nessun dato reale incluso nel commit;
 - nessuna password o chiave `service_role`;
 - HTML valido;
 - JavaScript senza errori in console;
+- test anonimo: scritture gestionali dirette negate;
+- test admin: operazioni autorizzate consentite;
+- policy del bucket `foto` controllate;
 - creazione, modifica ed eliminazione provate;
 - comportamento verificato a 390 px e desktop;
 - immagini ottimizzate;
@@ -116,12 +120,38 @@ supabase_setup.sql
 aggiungi_staff_maglia.sql
 aggiungi_impostazioni.sql
 20260614_disponibilita_whatsapp.sql
+20260630_disponibilita_staff_telefono_opzionale.sql
 20260630_notifiche_whatsapp_automatiche.sql
 ```
 
-I primi tre file documentano lo schema storico. Le migrazioni successive
-abilitano sicurezza, disponibilita, contatti e notifiche. Per nuovi ambienti
-questa sequenza va sostituita in futuro con una baseline consolidata.
+I primi tre file documentano lo schema storico. La migrazione del 30 giugno su
+staff e telefono e necessaria solo per gli ambienti che avevano gia applicato
+la precedente versione della migrazione del 14 giugno; verificarne il contenuto
+prima dell'esecuzione per evitare di applicare due volte modifiche gia incluse.
+Le migrazioni successive abilitano sicurezza, disponibilita, contatti e
+notifiche. Per nuovi ambienti questa sequenza deve essere sostituita con una
+baseline consolidata e testata.
+
+## Verifiche di sicurezza obbligatorie
+
+Prima di dichiarare sicuro un ambiente:
+
+1. provare senza sessione `INSERT`, `UPDATE` e `DELETE` sulle tabelle
+   gestionali e verificare che siano rifiutati;
+2. verificare che le RPC pubbliche espongano solo le operazioni previste;
+3. verificare che un utente autenticato ma non presente in `admin_users` non
+   possa amministrare dati o Storage;
+4. verificare upload e cancellazione nel bucket `foto` come anonimo e admin;
+5. controllare che nessuna policy storica `write_all` sia ancora attiva;
+6. provare input contenenti `<`, `>`, virgolette e apostrofi in tutti i campi
+   mostrati tramite `innerHTML`;
+7. verificare che un invio WhatsApp ripetuto non produca duplicati prima di
+   abilitare l'automazione su tutta la rosa.
+
+La selezione del nome e il pulsante `Oui, c'est moi` non sono una verifica
+dell'identita. Fino all'introduzione di account, link firmati o verifica
+server-side equivalente, non usare questo flusso per informazioni sensibili e
+considerare modificabili da terzi le risposte pubbliche.
 
 ## Deploy e rollback Vercel
 

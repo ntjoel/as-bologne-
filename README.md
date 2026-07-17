@@ -10,23 +10,30 @@ statistiche, rosa, staff e galleria fotografica.
 
 ## Stato importante
 
-Il sito in produzione e operativo, ma l'audit del 14 giugno 2026 ha rilevato
-problemi di sicurezza critici:
+Stato della revisione del 17 luglio 2026:
 
-- la password amministrativa e presente nel JavaScript pubblico;
-- le policy Supabase consentono scritture anonime sulle tabelle gestionali;
-- dati non affidabili vengono inseriti nel DOM tramite `innerHTML`, con rischio
-  di stored XSS;
-- le risposte di disponibilita sono leggibili pubblicamente e possono essere
-  sovrascritte senza identificare il giocatore.
+- il frontend nel repository usa Supabase Auth e verifica il ruolo tramite
+  `is_admin()`; la vecchia password amministrativa incorporata nel JavaScript
+  non e piu presente;
+- le migrazioni preparate rimuovono le scritture anonime dalle tabelle
+  gestionali e le riservano agli amministratori autenticati;
+- alcuni dati dinamici sono gia protetti con `escapeHtml()` o `textContent`, ma
+  restano interpolazioni non sicure in `innerHTML`, in particolare nelle liste
+  di partite e in alcune viste statistiche/amministrative;
+- la conferma visiva della persona nella scheda disponibilita non costituisce
+  una verifica dell'identita: un visitatore puo ancora selezionare un'altra
+  persona e sostituirne la risposta;
+- nomi e risposte di disponibilita restano leggibili pubblicamente;
+- policy Storage, stato effettivo delle migrazioni in produzione e negazione
+  delle scritture anonime devono essere verificati direttamente su Supabase.
 
 La chiave `anon` di Supabase puo essere pubblica per progettazione. La sicurezza
-deve pero essere garantita da Supabase Auth e da policy RLS restrittive. Non
-basta nascondere la pagina `/admin`.
+dipende dalle policy RLS, dalle funzioni RPC e dalle policy Storage, non dalla
+segretezza della pagina `/admin`.
 
-Prima di modificare le policy in produzione, seguire il piano coordinato
-descritto nell'audit: bloccare subito le scritture romperebbe il pannello admin
-attuale.
+Non considerare una correzione SQL attiva solo perche il relativo file e
+presente nel repository. Prima di ogni rilascio seguire il piano coordinato in
+`docs/MANUTENZIONE.md` e verificarne l'applicazione in staging e produzione.
 
 Nel repository e stata preparata la migrazione
 `20260614_disponibilita_whatsapp.sql`, insieme al nuovo frontend, per:

@@ -3,12 +3,64 @@
 Audit eseguito il 14 giugno 2026 sul repository e sulla produzione
 <https://project-zxasn.vercel.app>.
 
-Aggiornamento dello stesso giorno: nel repository e stata preparata, ma non
-applicata alla produzione, la migrazione
-`20260614_disponibilita_whatsapp.sql`. Introduce Supabase Auth, contatti
-privati, conferma visiva della persona, raccolta telefono se manca, scadenze e
-messaggi WhatsApp precompilati. Il rilascio deve seguire l'ordine documentato
-in `MANUTENZIONE.md`.
+Revisione documentale e del codice aggiornata il 17 luglio 2026. La verifica
+del 17 luglio riguarda il contenuto del repository e non certifica lo stato
+effettivo del database, delle policy Storage o del deployment di produzione.
+
+Rispetto alla versione osservata il 14 giugno, il repository contiene ora:
+
+- Supabase Auth e controllo del ruolo amministratore tramite `is_admin()`;
+- migrazioni RLS che rimuovono le scritture anonime gestionali;
+- contatti telefonici separati dalle tabelle pubbliche;
+- scadenza delle disponibilita;
+- primi interventi di escaping e uso di `textContent`;
+- Edge Function e log per le notifiche WhatsApp.
+
+L'audit storico riportato sotto resta utile per comprendere l'origine dei
+problemi. Quando un'evidenza si riferisce alla vecchia versione, viene
+considerata storica e non va interpretata automaticamente come descrizione del
+codice corrente.
+
+## Stato corrente al 17 luglio 2026
+
+### Correzioni presenti nel repository
+
+- La password amministrativa non e piu incorporata in `admin.js`.
+- Il login usa Supabase Auth e il pannello verifica `is_admin()`.
+- Le migrazioni preparano policy gestionali riservate agli admin autenticati.
+- La lista delle disponibilita usa nodi DOM e `textContent`.
+- Diverse viste applicano `escapeHtml()` a nomi, foto e didascalie.
+- I token WhatsApp restano nella Edge Function e non nel frontend.
+
+La presenza di queste correzioni nel repository non dimostra che le migrazioni
+e le policy siano gia attive in produzione.
+
+### Rischi ancora aperti
+
+1. **Identita nelle disponibilita:** la conferma visiva non autentica la
+   persona. Le RPC anonime permettono ancora di selezionare un giocatore e
+   sostituirne la risposta; se il contatto manca, possono anche registrare il
+   telefono fornito dal visitatore.
+2. **Stored XSS residuo:** alcune viste interpolano ancora dati del database in
+   `innerHTML` senza escaping completo, soprattutto partite, staff e alcune
+   opzioni/form amministrativi.
+3. **Privacy:** nomi, presenze, statistiche, fotografie e disponibilita sono
+   pubblici secondo le policy e il modello attuali.
+4. **Stato infrastrutturale non verificato:** occorre controllare direttamente
+   RLS, policy Storage e migrazioni applicate in produzione.
+5. **Affidabilita:** diverse chiamate ignorano ancora `error`; mancano test,
+   CI, staging separato e una baseline SQL riproducibile.
+6. **WhatsApp:** non risultano idempotenza o rate limiting applicativo; una
+   richiesta ripetuta puo produrre invii duplicati.
+
+### Priorita aggiornata
+
+1. introdurre account giocatore o link personali firmati;
+2. eliminare le interpolazioni HTML residue e gli handler inline;
+3. verificare RLS e Storage con test anonimo/admin;
+4. creare staging e consolidare le migrazioni;
+5. aggiungere gestione errori, test e idempotenza WhatsApp;
+6. completare privacy, accessibilita, prestazioni e SEO.
 
 ## Sintesi
 
@@ -59,9 +111,19 @@ Risultati tecnici:
 - Node.js/test runner: non presenti nell'ambiente e nel progetto;
 - test automatici: assenti.
 
-## P0 - Critico
+## Audit storico del 14 giugno 2026
+
+Le sezioni da P0 a P2 conservano evidenze, numeri di riga e condizioni
+osservate durante l'audit iniziale. Per lo stato del codice corrente fare
+riferimento alla sezione `Stato corrente al 17 luglio 2026` sopra.
+
+## P0 - Critico (audit storico)
 
 ### 1. Login amministrativo solo lato client
+
+**Stato nel repository corrente:** corretto nel codice tramite Supabase Auth e
+`is_admin()`; da verificare che migrazione, account e policy siano attivi in
+produzione.
 
 Evidenze:
 
@@ -83,6 +145,10 @@ Nota: la chiave Supabase `anon` e normalmente pubblica. Diventa pericolosa
 quando le policy RLS autorizzano operazioni che un anonimo non dovrebbe fare.
 
 ### 2. Scritture anonime sul database
+
+**Stato nel repository corrente:** le migrazioni contengono policy RLS
+restrittive; la loro applicazione effettiva in produzione non e stata
+certificata dalla revisione del 17 luglio.
 
 Evidenze:
 
@@ -109,6 +175,10 @@ Correzione:
 - verifica con richieste anonime che devono ricevere un rifiuto.
 
 ### 3. Stored XSS tramite `innerHTML`
+
+**Stato nel repository corrente:** parzialmente corretto. `escapeHtml()` e
+`textContent` sono usati in diverse viste, ma restano interpolazioni dinamiche
+non protette.
 
 Evidenze principali:
 
