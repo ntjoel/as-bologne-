@@ -1,6 +1,6 @@
 # Manuale di utilizzo
 
-Documento aggiornato il 30 giugno 2026.
+Documento aggiornato il 17 luglio 2026.
 
 ## Accesso
 
@@ -65,17 +65,28 @@ sconfitte.
 6. Premere il grande pulsante verde `Disponible` oppure rosso `Pas dispo`.
 7. Controllare il messaggio di conferma.
 
+> **Limite attuale:** la foto, le iniziali e il pulsante `Oui, c'est moi`
+> aiutano a evitare errori, ma non verificano l'identita. Chi conosce il sito
+> puo selezionare un'altra persona e sostituirne la risposta. Non comunicare
+> tramite questo flusso informazioni diverse da disponibilita e telefono; in
+> caso di risposta sospetta contattare il responsabile della squadra.
+
 Se il nome non e presente, scegliere l'opzione per una persona non in elenco e
 inserire nome e cognome. Il telefono WhatsApp e facoltativo, ma senza telefono
 il club non potra inviare le prossime notifiche a quella persona.
 
 Una nuova risposta per la stessa partita e lo stesso nome sostituisce quella
-precedente.
+precedente. Questo comportamento permette di correggere una risposta, ma finche
+non viene introdotta una verifica dell'identita consente anche modifiche da
+parte di terzi.
 
 Il telefono completo non viene letto dalla pagina pubblica. Se manca, viene
 salvato tramite una funzione del database nella tabella privata dei contatti.
 Per le persone fuori lista viene salvato in una tabella privata collegata alla
 risposta, cosi il responsabile puo ricopiarlo nella scheda della persona.
+Poiche il flusso pubblico non autentica la persona, il responsabile deve
+verificare un nuovo numero con l'interessato prima di usarlo per comunicazioni
+automatiche.
 
 Se appare `Reponses fermees`, la data limite e passata e bisogna contattare
 direttamente il responsabile della squadra.
@@ -216,6 +227,10 @@ L'invio automatico funziona solo dopo la configurazione tecnica: account
 WhatsApp Business Platform, consenso dei destinatari, template approvato,
 segreti della Edge Function e migrazione dei log. Se questa configurazione
 manca, la partita viene comunque creata e resta disponibile l'invio manuale.
+
+Prima di premere nuovamente l'invio automatico dopo un errore o un rallentamento,
+controllare il log: il sistema non garantisce ancora l'idempotenza e una
+richiesta ripetuta puo inviare due volte lo stesso messaggio.
 
 Prima di eliminare una persona, verificare che non sia un omonimo. La
 cancellazione elimina anche le sue statistiche storiche.

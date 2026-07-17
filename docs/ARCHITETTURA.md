@@ -1,6 +1,6 @@
 # Architettura e dati
 
-Documento aggiornato il 30 giugno 2026.
+Documento aggiornato il 17 luglio 2026.
 
 ## Panoramica
 
@@ -55,8 +55,10 @@ non esporre il token WhatsApp nel codice pubblico.
   configurata.
 
 La versione pubblicata prima della migrazione del 14 giugno 2026 usava invece
-una password nel browser. Il nuovo accesso diventa operativo soltanto con il
-rilascio coordinato descritto in `MANUTENZIONE.md`.
+una password nel browser. Il codice corrente non contiene piu quella password,
+ma usa ancora un'unica e-mail tecnica incorporata nel frontend. La protezione
+diventa effettiva soltanto se migrazione, account autorizzato e policy RLS sono
+stati applicati nell'ambiente Supabase attivo.
 
 ### Stili e dipendenze
 
@@ -68,8 +70,10 @@ Dipendenze caricate a runtime:
 - Tabler Icons da jsDelivr;
 - font Oswald da Google Fonts.
 
-Le versioni non sono fissate in modo completo. Un aggiornamento esterno puo
-quindi cambiare il comportamento senza un commit nel repository.
+La Edge Function fissa Supabase JS alla versione `2.45.4`; i due frontend
+caricano invece `@supabase/supabase-js@2`. Anche Tabler Icons usa una versione
+mobile. Un aggiornamento esterno puo quindi cambiare il comportamento senza un
+commit nel repository.
 
 ## Modello dati
 
@@ -160,10 +164,14 @@ viene sostituita dalle funzioni:
 - `registra_disponibilita_giocatore`;
 - `registra_disponibilita_ospite`.
 
-Le funzioni verificano scadenza e persona attiva. Per il momento la verifica
-con le ultime cifre del telefono non e obbligatoria, perche non tutti i numeri
-sono gia disponibili. Per gli ospiti il telefono e facoltativo e viene salvato
-solo se inserito.
+Le funzioni verificano scadenza e persona attiva, ma non verificano che chi
+invia la risposta sia realmente quella persona. La conferma di foto o iniziali
+e solo un passaggio dell'interfaccia e puo essere aggirata chiamando direttamente
+la RPC. Quando il contatto manca, la RPC pubblica puo inoltre registrare il
+telefono fornito dal visitatore. Questa limitazione deve essere risolta con
+account giocatore, link personale firmato o verifica server equivalente.
+
+Per gli ospiti il telefono e facoltativo e viene salvato solo se inserito.
 
 La coppia `match_id, nome` e univoca ma sensibile a maiuscole, spazi e varianti
 del nome. Per le persone registrate sarebbe preferibile usare sempre
@@ -216,7 +224,9 @@ Il 14 giugno 2026, tramite le API pubbliche, erano leggibili:
 - 37 risposte di disponibilita;
 - 4 record fotografici.
 
-Questi numeri servono solo come riferimento dell'audit e cambieranno con l'uso.
+Questi numeri servono solo come riferimento storico dell'audit e cambieranno
+con l'uso. La revisione del 17 luglio 2026 ha esaminato il repository, ma non ha
+eseguito una nuova lettura o modifica dei dati di produzione.
 
 ## Routing e deploy
 
@@ -242,7 +252,9 @@ migrazioni completo:
 1. `supabase_setup.sql`;
 2. `aggiungi_staff_maglia.sql`;
 3. `aggiungi_impostazioni.sql`;
-4. `20260614_disponibilita_whatsapp.sql`.
+4. `20260614_disponibilita_whatsapp.sql`;
+5. `20260630_disponibilita_staff_telefono_opzionale.sql`;
+6. `20260630_notifiche_whatsapp_automatiche.sql`.
 
 `supabase_setup.sql` da solo non ricostruisce lo schema corrente e le istruzioni
 `CREATE POLICY` non sono tutte rieseguibili senza errore. Serve una baseline
@@ -262,9 +274,10 @@ La versione preparata mantiene il frontend statico e aggiunge:
 
 Restano consigliati:
 
-- account giocatore o link personale firmato per un'identita piu forte;
+- account giocatore o link personale firmato per verificare l'identita;
 - Edge Function per rate limiting e operazioni sensibili;
 - eliminazione dei restanti usi di `innerHTML` con dati dinamici;
+- idempotenza per evitare invii WhatsApp duplicati;
 - Storage con policy distinte per lettura e scrittura;
 - staging separato dalla produzione;
 - migrazioni SQL versionate e testate.
