@@ -198,9 +198,20 @@ I campi vengono salvati al cambio di valore. Dopo la compilazione, ricaricare
 la pagina e controllare alcuni record per confermare il salvataggio.
 
 Il pulsante `Télécharger PDF joueurs` e disponibile solo nel pannello
-amministratore. Scarica un PDF con le statistiche complete di tutti i
-giocatori della stagione corrente: riepilogo generale e dettaglio partita per
-partita. Il nome del file contiene il codice della stagione.
+amministratore. Prima del download, usare `Saison à exporter` per scegliere la
+stagione corrente oppure una stagione archiviata.
+
+Il PDF contiene:
+
+- codice della stagione;
+- riepilogo generale della squadra;
+- partecipazione agli eventi e alle partite;
+- gol, assist e cartellini;
+- dettaglio partita per partita di ogni giocatore;
+- stagione e numero di pagina nel pie di pagina.
+
+Il nome del file contiene il codice della stagione, per esempio
+`as-bologne-statistiques-2025-2026-2026-09-01.pdf`.
 
 ### Gestire giocatori e staff
 

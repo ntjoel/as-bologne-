@@ -322,6 +322,19 @@ Tra il 1 e il 7 settembre verificare:
 Non eliminare manualmente partite, statistiche o giocatori con storico per
 azzerare i conteggi.
 
+### Esportazione PDF di fine stagione
+
+Dopo avere registrato l'ultima partita e controllato le statistiche:
+
+1. aprire `Admin > Presences`;
+2. in `Saison à exporter`, scegliere la stagione conclusa;
+3. premere `Télécharger PDF joueurs`;
+4. aprire il PDF e controllare stagione, numero di eventi, partite e giocatori;
+5. conservare il file in uno spazio privato e protetto.
+
+Il PDF e una copia di consultazione. L'archivio principale resta nel database e
+non deve essere cancellato dopo l'esportazione.
+
 ## Controlli periodici
 
 ### Ogni settimana

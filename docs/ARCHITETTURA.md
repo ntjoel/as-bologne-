@@ -52,6 +52,7 @@ non esporre il token WhatsApp nel codice pubblico.
 - gestisce rosa, staff e presenze;
 - carica foto e logo;
 - aggiorna risultati e statistiche;
+- esporta in PDF le statistiche della stagione scelta, corrente o archiviata;
 - invoca la Edge Function WhatsApp dopo la creazione di una partita, se
   configurata.
 
