@@ -1,6 +1,6 @@
 # Manuale di utilizzo
 
-Documento aggiornato il 17 luglio 2026.
+Documento aggiornato il 23 luglio 2026.
 
 ## Accesso
 
@@ -108,6 +108,19 @@ cartellini e riepilogo partita per partita.
 Il numero mostrato nella tabella presenze rappresenta la maglia utilizzata in
 quella partita. Il segno di spunta indica una presenza senza numero registrato.
 
+#### Archivio delle stagioni
+
+La stagione corrente va dal 1 settembre al 31 agosto. Il 1 settembre il sito
+passa automaticamente alla nuova stagione:
+
+- calendario e conteggi correnti ripartono da zero;
+- le vecchie partite e statistiche non vengono cancellate;
+- nella scheda `Stats`, il menu `Saison des statistiques` permette di scegliere
+  una stagione conclusa e consultare presenze, gol, assist e cartellini.
+
+Un giocatore uscito dalla rosa viene disattivato se possiede statistiche, cosi
+resta visibile negli archivi delle stagioni in cui ha partecipato.
+
 ### Foto
 
 La scheda `Photos` raggruppa le immagini per partita.
@@ -186,7 +199,8 @@ la pagina e controllare alcuni record per confermare il salvataggio.
 
 Il pulsante `Télécharger PDF joueurs` e disponibile solo nel pannello
 amministratore. Scarica un PDF con le statistiche complete di tutti i
-giocatori: riepilogo generale e dettaglio partita per partita.
+giocatori della stagione corrente: riepilogo generale e dettaglio partita per
+partita. Il nome del file contiene il codice della stagione.
 
 ### Gestire giocatori e staff
 

@@ -3,8 +3,8 @@
 Audit eseguito il 14 giugno 2026 sul repository e sulla produzione
 <https://project-zxasn.vercel.app>.
 
-Revisione documentale e del codice aggiornata il 17 luglio 2026. La verifica
-del 17 luglio riguarda il contenuto del repository e non certifica lo stato
+Revisione documentale e del codice aggiornata il 23 luglio 2026. La verifica
+del 23 luglio riguarda il contenuto del repository e non certifica lo stato
 effettivo del database, delle policy Storage o del deployment di produzione.
 
 Rispetto alla versione osservata il 14 giugno, il repository contiene ora:
@@ -15,13 +15,14 @@ Rispetto alla versione osservata il 14 giugno, il repository contiene ora:
 - scadenza delle disponibilita;
 - primi interventi di escaping e uso di `textContent`;
 - Edge Function e log per le notifiche WhatsApp.
+- stagioni settembre/agosto con archivio non distruttivo delle statistiche.
 
 L'audit storico riportato sotto resta utile per comprendere l'origine dei
 problemi. Quando un'evidenza si riferisce alla vecchia versione, viene
 considerata storica e non va interpretata automaticamente come descrizione del
 codice corrente.
 
-## Stato corrente al 17 luglio 2026
+## Stato corrente al 23 luglio 2026
 
 ### Correzioni presenti nel repository
 
@@ -115,7 +116,7 @@ Risultati tecnici:
 
 Le sezioni da P0 a P2 conservano evidenze, numeri di riga e condizioni
 osservate durante l'audit iniziale. Per lo stato del codice corrente fare
-riferimento alla sezione `Stato corrente al 17 luglio 2026` sopra.
+riferimento alla sezione `Stato corrente al 23 luglio 2026` sopra.
 
 ## P0 - Critico (audit storico)
 
@@ -148,7 +149,7 @@ quando le policy RLS autorizzano operazioni che un anonimo non dovrebbe fare.
 
 **Stato nel repository corrente:** le migrazioni contengono policy RLS
 restrittive; la loro applicazione effettiva in produzione non e stata
-certificata dalla revisione del 17 luglio.
+certificata dalla revisione del 23 luglio.
 
 Evidenze:
 

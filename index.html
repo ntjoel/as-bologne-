@@ -13,7 +13,7 @@
     <div class="topbar-crest"><img src="logo.png" alt="AS Bologne" onerror="this.parentElement.innerHTML='<i class=\'ti ti-shield-half\'></i>'"></div>
     <div class="topbar-info">
       <div class="topbar-title">A.S. Bologne</div>
-      <div class="topbar-sub">Saison 2025/2026</div>
+      <div class="topbar-sub" data-current-season>Saison en cours</div>
     </div>
     <div class="topbar-cameroon">
       <span class="cameroon-flag" role="img" aria-label="Drapeau du Cameroun">
@@ -124,6 +124,15 @@
 
     <!-- STATISTICHE -->
     <div id="sec-statistiche" class="section-hidden">
+      <div class="card season-archive-card">
+        <div class="form-row">
+          <label class="form-lbl" for="season-select">Saison des statistiques</label>
+          <select id="season-select" onchange="changeStatsSeason()">
+            <option value="">-- Chargement... --</option>
+          </select>
+        </div>
+        <div class="simple-help">La saison courante va de septembre à août. Les saisons terminées restent archivées ici.</div>
+      </div>
       <div class="tab-sub">
         <button class="tab-sub-btn active" onclick="switchStat('eventi', this)">Événements</button>
         <button class="tab-sub-btn" onclick="switchStat('presenze', this)">Matches</button>

@@ -1,4 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  applySeasonLabel,
+  ensureCurrentSeason,
+  loadSeasons,
+  seasonForDate
+} from "./season.mjs";
 
 const SUPABASE_URL = "https://uiypmfkfwcvdujkvsjxp.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpeXBtZmtmd2N2ZHVqa3ZzanhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTE2MTAsImV4cCI6MjA5NjgyNzYxMH0.iPvSXzsXPQRJdXURELrjjWOoi68MV7w9yONbt17VXew";
@@ -11,16 +17,44 @@ let availPlayers = new Map();
 let galleryPhotos = [];
 let currentGalleryPhotoIndex = null;
 let currentGalleryZoom = 1;
+let currentSeason = seasonForDate();
+let availableSeasons = [currentSeason];
 
 document.addEventListener("DOMContentLoaded", async () => {
   applyStoredLogo();
   applyMatchPhotoBackground();
+  await initializeSeasons();
   await loadMatches();
   const requestedMatch = parseInt(new URLSearchParams(window.location.search).get("match"));
   if (requestedMatch && allMatches.some(m => m.id === requestedMatch)) {
     window.openMatch(requestedMatch);
   }
 });
+
+async function initializeSeasons() {
+  currentSeason = await ensureCurrentSeason(supabase);
+  availableSeasons = await loadSeasons(supabase, currentSeason);
+  applySeasonLabel(currentSeason);
+
+  const select = document.getElementById("season-select");
+  if (!select) return;
+  select.replaceChildren();
+  availableSeasons.forEach(season => {
+    const suffix = season.codice === currentSeason.codice ? " (actuelle)" : " (archive)";
+    select.add(new Option(`Saison ${season.codice}${suffix}`, season.codice));
+  });
+  select.value = currentSeason.codice;
+}
+
+function selectedStatsSeason() {
+  const code = document.getElementById("season-select")?.value;
+  return availableSeasons.find(season => season.codice === code) || currentSeason;
+}
+
+window.changeStatsSeason = function () {
+  window.closePlayerStats();
+  loadStats();
+};
 
 document.addEventListener("keydown", event => {
   const playerViewerOpen = !document.getElementById("player-stats-viewer")?.classList.contains("section-hidden");
@@ -71,7 +105,12 @@ async function applyMatchPhotoBackground() {
 
 // ---- MATCHES ----
 async function loadMatches() {
-  const { data, error } = await supabase.from("matches").select("*").order("data", { ascending: true });
+  const { data, error } = await supabase
+    .from("matches")
+    .select("*")
+    .gte("data", currentSeason.data_inizio)
+    .lte("data", currentSeason.data_fine)
+    .order("data", { ascending: true });
   if (error) { console.error(error); return; }
   allMatches = data || [];
   renderMatches();
@@ -450,38 +489,57 @@ function eventPresenceCellHtml(playerId, eventGroup, statMap = statMapCurrent) {
 async function loadStats() {
   const el = document.getElementById("stat-content");
   const titleEl = document.getElementById("stat-title");
+  const season = selectedStatsSeason();
+  const titles = { eventi: 'Participation événements', presenze: 'Présences par match', gol: 'Buts & Passes décisives', cartellini: 'Cartons' };
+  const icons = { eventi: 'ti-calendar-event', presenze: 'ti-clipboard-check', gol: 'ti-ball-football', cartellini: 'ti-cards' };
+  titleEl.innerHTML = `<i class="ti ${icons[currentStatType]}"></i> ${titles[currentStatType]} · Saison ${escapeHtml(season.codice)}`;
   el.innerHTML = '<div class="empty-msg">Chargement...</div>';
   statPlayers = [];
   statPlayedMatches = [];
   statEventGroups = [];
   statMapCurrent = {};
 
-  const { data: players, error: pe } = await supabase.from("giocatori").select("*").eq("attivo", true).eq("tipo", "giocatore").order("nome");
-  const { data: matches, error: me } = await supabase.from("matches").select("id, avversario, data, stato, risultato, orario, campo").order("data");
+  const [
+    { data: allPlayers, error: pe },
+    { data: matches, error: me }
+  ] = await Promise.all([
+    supabase.from("giocatori").select("*").eq("tipo", "giocatore").order("nome"),
+    supabase
+      .from("matches")
+      .select("id, avversario, data, stato, risultato, orario, campo")
+      .gte("data", season.data_inizio)
+      .lte("data", season.data_fine)
+      .order("data")
+  ]);
 
-  if (pe || me || !players || !players.length) {
+  if (pe || me || !allPlayers || !allPlayers.length) {
     el.innerHTML = '<div class="empty-msg">Nessun giocatore ancora. Aggiungili dal pannello admin.</div>';
     return;
   }
 
   const playedMatches = matches ? matches.filter(m => m.stato === 'passata') : [];
   if (!playedMatches.length) {
-    el.innerHTML = '<div class="empty-msg">Nessuna partita giocata ancora.</div>';
+    el.innerHTML = `<div class="empty-msg">Aucune statistique pour la saison ${escapeHtml(season.codice)}. Les compteurs sont a zero.</div>`;
     return;
   }
 
-  const { data: stats } = await supabase.from("statistiche").select("*");
+  const matchIds = playedMatches.map(match => match.id);
+  const { data: stats } = await supabase
+    .from("statistiche")
+    .select("*")
+    .in("match_id", matchIds);
   const statMap = {};
   (stats || []).forEach(s => { statMap[`${s.giocatore_id}_${s.match_id}`] = s; });
+  const playersWithStats = new Set((stats || []).map(stat => stat.giocatore_id));
+  const isCurrentSeason = season.codice === currentSeason.codice;
+  const players = allPlayers.filter(player =>
+    playersWithStats.has(player.id) || (isCurrentSeason && player.attivo)
+  );
   const eventGroups = groupMatchesByEvent(playedMatches);
   statPlayers = players || [];
   statPlayedMatches = playedMatches;
   statEventGroups = eventGroups;
   statMapCurrent = statMap;
-
-  const titles = { eventi: 'Participation événements', presenze: 'Présences par match', gol: 'Buts & Passes décisives', cartellini: 'Cartons' };
-  const icons = { eventi: 'ti-calendar-event', presenze: 'ti-clipboard-check', gol: 'ti-ball-football', cartellini: 'ti-cards' };
-  titleEl.innerHTML = `<i class="ti ${icons[currentStatType]}"></i> ${titles[currentStatType]}`;
 
   const posCol = { G: 'badge-navy', D: 'badge-navy', M: 'badge-gold', A: 'badge-red' };
 
@@ -528,8 +586,12 @@ async function loadStats() {
     html += '</tbody></table></div>';
     html += '<div style="font-size:11px;color:#888;margin-top:8px;">Un événement correspond aux matchs joués le même jour. Exemple: 2/3 signifie présent à 2 matchs sur 3 dans cet événement.</div>';
 
-    const { data: staff } = await supabase.from("giocatori").select("*").eq("attivo", true).eq("tipo", "staff").order("ruolo");
-    if (staff && staff.length) {
+    const { data: allStaff } = await supabase.from("giocatori").select("*").eq("tipo", "staff").order("ruolo");
+    const staff = (allStaff || []).filter(person =>
+      playedMatches.some(match => statMap[`${person.id}_${match.id}`]) ||
+      (isCurrentSeason && person.attivo)
+    );
+    if (staff.length) {
       html += '<div style="margin-top:18px;"><div class="card-title" style="margin-bottom:10px;"><i class="ti ti-briefcase"></i> Staff — événements</div>';
       staff.forEach(p => {
         const initials = escapeHtml(p.nome.split(' ').map(x => x[0]).join('').toUpperCase());
@@ -596,11 +658,18 @@ async function loadStats() {
     html += '<div style="font-size:11px;color:#888;margin-top:8px;">Le numéro indique le maillot porté ce match-là · ✓ présent sans numéro · ✗ absent</div>';
 
     // Staff con presenze
-    const { data: staff } = await supabase.from("giocatori").select("*").eq("attivo", true).eq("tipo", "staff").order("ruolo");
-    if (staff && staff.length) {
+    const { data: allStaff } = await supabase.from("giocatori").select("*").eq("tipo", "staff").order("ruolo");
+    const staff = (allStaff || []).filter(person =>
+      playedMatches.some(match => statMap[`${person.id}_${match.id}`]) ||
+      (isCurrentSeason && person.attivo)
+    );
+    if (staff.length) {
       html += '<div style="margin-top:18px;"><div class="card-title" style="margin-bottom:10px;"><i class="ti ti-briefcase"></i> Staff — présences</div>';
       staff.forEach(p => {
-        const initials = p.nome.split(' ').map(x => x[0]).join('').toUpperCase();
+        const initials = escapeHtml(p.nome.split(' ').map(x => x[0]).join('').toUpperCase());
+        const safeName = escapeHtml(p.nome);
+        const safeRole = escapeHtml(p.ruolo || 'Staff');
+        const safePhoto = escapeHtml(p.foto_url || '');
         let total = 0;
         playedMatches.forEach(m => {
           const s = statMap[`${p.id}_${m.id}`];
@@ -610,11 +679,11 @@ async function loadStats() {
         html += `<div class="avail-item">
           <div style="display:flex;align-items:center;gap:10px;flex:1">
             ${p.foto_url
-              ? `<img src="${p.foto_url}" class="player-photo-sm" onerror="this.style.display='none'">`
+              ? `<img src="${safePhoto}" class="player-photo-sm" onerror="this.style.display='none'">`
               : `<div class="avatar" style="background:#633806">${initials}</div>`}
             <div>
-              <div style="font-weight:500">${p.nome}</div>
-              <span class="badge badge-gold" style="font-size:10px">${p.ruolo || 'Staff'}</span>
+              <div style="font-weight:500">${safeName}</div>
+              <span class="badge badge-gold" style="font-size:10px">${safeRole}</span>
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:8px;">

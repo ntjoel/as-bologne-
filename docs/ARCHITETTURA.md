@@ -1,6 +1,6 @@
 # Architettura e dati
 
-Documento aggiornato il 17 luglio 2026.
+Documento aggiornato il 23 luglio 2026.
 
 ## Panoramica
 
@@ -33,6 +33,7 @@ non esporre il token WhatsApp nel codice pubblico.
 
 `index.html` contiene la struttura delle schede. `app.js`:
 
+- carica o crea la stagione corrente tramite `season.mjs`;
 - carica calendario e risultati;
 - registra e legge disponibilita;
 - aggrega presenze e statistiche;
@@ -81,6 +82,7 @@ commit nel repository.
 
 Contiene calendario e risultato:
 
+- `stagione_id`, assegnato automaticamente dalla data;
 - `data`;
 - `avversario`;
 - `tipo`: `Casa` o `Trasferta`;
@@ -92,6 +94,25 @@ Contiene calendario e risultato:
 
 Il risultato e salvato come testo. Non esistono vincoli che garantiscano il
 formato o la coerenza tra risultato e stato.
+
+### `stagioni`
+
+Definisce stagioni dal 1 settembre al 31 agosto:
+
+- `anno_inizio`;
+- `codice`, per esempio `2026/2027`;
+- `data_inizio`;
+- `data_fine`.
+
+La funzione `assicura_stagione_corrente` crea in modo idempotente la stagione
+corretta in base alla data di Roma. Viene chiamata all'apertura del sito e del
+pannello. Se nessuno apre il sito il 1 settembre, la stagione viene creata al
+primo accesso successivo.
+
+Un trigger assegna ogni partita alla stagione determinata dalla sua data. Le
+statistiche non vengono spostate o cancellate: restano collegate alle partite
+della stagione conclusa. Il frontend mostra per impostazione predefinita solo
+la stagione corrente e permette di scegliere quelle precedenti nell'archivio.
 
 ### `giocatori`
 
@@ -204,6 +225,7 @@ la scrive con chiave server.
 
 ```text
 matches 1 ---- N statistiche N ---- 1 giocatori
+stagioni 1 -- N matches
 matches 1 ---- N disponibilita
 matches 1 ---- N foto
 giocatori 1 -- 0..1 contatti_giocatori
@@ -254,7 +276,8 @@ migrazioni completo:
 3. `aggiungi_impostazioni.sql`;
 4. `20260614_disponibilita_whatsapp.sql`;
 5. `20260630_disponibilita_staff_telefono_opzionale.sql`;
-6. `20260630_notifiche_whatsapp_automatiche.sql`.
+6. `20260630_notifiche_whatsapp_automatiche.sql`;
+7. `20260723_stagioni_archivio_automatico.sql`.
 
 `supabase_setup.sql` da solo non ricostruisce lo schema corrente e le istruzioni
 `CREATE POLICY` non sono tutte rieseguibili senza errore. Serve una baseline

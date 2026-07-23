@@ -344,3 +344,10 @@ input:focus, select:focus { border-color: #1a2a5e; }
   .player-match-row { grid-template-columns: 1fr; gap: 5px; }
   .player-match-state { width: fit-content; }
 }
+.season-archive-card {
+  margin-bottom: 12px;
+}
+
+.season-archive-card .form-row {
+  margin-bottom: 6px;
+}
