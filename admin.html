@@ -131,10 +131,17 @@
           <select id="pres-match-select" onchange="loadPresenze()"><option value="">-- Seleziona --</option></select>
         </div>
         <div class="stat-actions">
+          <div class="form-row pdf-season-field">
+            <label class="form-lbl" for="pdf-season-select">Saison à exporter</label>
+            <select id="pdf-season-select">
+              <option value="">-- Chargement... --</option>
+            </select>
+            <div class="simple-help">Choisis la saison courante ou une saison archivée.</div>
+          </div>
           <button type="button" class="btn-outline btn-stat-pdf" onclick="downloadPlayersStatsPdf()">
             <i class="ti ti-file-type-pdf"></i> Télécharger PDF joueurs
           </button>
-          <div class="simple-help">Riservato agli amministratori: scarica tutte le statistiche dei giocatori.</div>
+          <div class="simple-help">Riservato agli amministratori: scarica tutte le statistiche della stagione selezionata.</div>
         </div>
       </div>
       <div id="presenze-table-wrap"></div>

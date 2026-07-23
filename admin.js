@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   applySeasonLabel,
   ensureCurrentSeason,
+  loadSeasons,
   seasonForDate
 } from "./season.mjs";
 
@@ -12,20 +13,44 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 let whatsappPlayers = [];
 let currentWhatsAppMatchId = null;
 let currentSeason = seasonForDate();
+let availableSeasons = [currentSeason];
 
 document.addEventListener("DOMContentLoaded", async () => {
   applyStoredLogo();
   applyMatchPhotoBackground();
   currentSeason = await ensureCurrentSeason(supabase);
+  availableSeasons = await loadSeasons(supabase, currentSeason);
   applySeasonLabel(currentSeason);
+  renderPdfSeasonOptions();
   const { data } = await supabase.auth.getSession();
   if (data.session) await showPanel();
 });
 
-function currentSeasonQuery(query) {
+function seasonQuery(query, season) {
   return query
-    .gte("data", currentSeason.data_inizio)
-    .lte("data", currentSeason.data_fine);
+    .gte("data", season.data_inizio)
+    .lte("data", season.data_fine);
+}
+
+function currentSeasonQuery(query) {
+  return seasonQuery(query, currentSeason);
+}
+
+function renderPdfSeasonOptions() {
+  const select = document.getElementById("pdf-season-select");
+  if (!select) return;
+
+  select.replaceChildren();
+  availableSeasons.forEach(season => {
+    const suffix = season.codice === currentSeason.codice ? " (actuelle)" : " (archive)";
+    select.add(new Option(`Saison ${season.codice}${suffix}`, season.codice));
+  });
+  select.value = currentSeason.codice;
+}
+
+function selectedPdfSeason() {
+  const code = document.getElementById("pdf-season-select")?.value;
+  return availableSeasons.find(season => season.codice === code) || currentSeason;
 }
 
 // Carica il logo salvato e lo applica alla topbar / login
@@ -805,6 +830,7 @@ function calcPlayerPdfTotals(playerId, matches, eventGroups, statMap) {
 window.downloadPlayersStatsPdf = async function () {
   const btn = document.querySelector(".btn-stat-pdf");
   const originalHtml = btn?.innerHTML;
+  const exportSeason = selectedPdfSeason();
 
   if (btn) {
     btn.disabled = true;
@@ -830,8 +856,9 @@ window.downloadPlayersStatsPdf = async function () {
       { data: stats, error: statsError }
     ] = await Promise.all([
       supabase.from("giocatori").select("*").eq("tipo", "giocatore").order("nome"),
-      currentSeasonQuery(
-        supabase.from("matches").select("id, avversario, data, stato, risultato, orario, campo")
+      seasonQuery(
+        supabase.from("matches").select("id, avversario, data, stato, risultato, orario, campo"),
+        exportSeason
       ).eq("stato", "passata").order("data"),
       supabase.from("statistiche").select("*")
     ]);
@@ -854,7 +881,10 @@ window.downloadPlayersStatsPdf = async function () {
         .filter(stat => matchIds.has(stat.match_id))
         .map(stat => stat.giocatore_id)
     );
-    const players = allPlayers.filter(player => player.attivo || playersWithStats.has(player.id));
+    const isCurrentSeason = exportSeason.codice === currentSeason.codice;
+    const players = allPlayers.filter(player =>
+      playersWithStats.has(player.id) || (isCurrentSeason && player.attivo)
+    );
     const eventGroups = groupPdfMatchesByEvent(matches);
 
     const doc = new PdfConstructor({ unit: 'mm', format: 'a4' });
@@ -902,10 +932,10 @@ window.downloadPlayersStatsPdf = async function () {
     doc.setTextColor(255, 255, 255);
     doc.text('A.S. Bologne', margin, 11);
     doc.setFontSize(10);
-    doc.text(`Statistiques joueurs - Saison ${currentSeason.codice}`, margin, 19);
+    doc.text(`Statistiques joueurs - Saison ${exportSeason.codice}`, margin, 19);
 
     const exportDate = new Date().toLocaleDateString('fr-FR');
-    writeLine(`Saison ${currentSeason.codice} | Export admin du ${exportDate} | Joueurs: ${players.length} | Evenements: ${eventGroups.length} | Matches joues: ${matches.length}`, {
+    writeLine(`Saison ${exportSeason.codice} | Export admin du ${exportDate} | Joueurs: ${players.length} | Evenements: ${eventGroups.length} | Matches joues: ${matches.length}`, {
       size: 9,
       color: [98, 107, 128],
       after: 3
@@ -982,8 +1012,20 @@ window.downloadPlayersStatsPdf = async function () {
       y += 4;
     });
 
+    const totalPages = doc.getNumberOfPages();
+    for (let pageNumber = 1; pageNumber <= totalPages; pageNumber++) {
+      doc.setPage(pageNumber);
+      doc.setDrawColor(224, 230, 244);
+      doc.line(margin, pageHeight - 9, pageWidth - margin, pageHeight - 9);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(98, 107, 128);
+      doc.text(`A.S. Bologne - Saison ${exportSeason.codice}`, margin, pageHeight - 5);
+      doc.text(`Page ${pageNumber}/${totalPages}`, pageWidth - margin, pageHeight - 5, { align: 'right' });
+    }
+
     const filenameDate = new Date().toISOString().slice(0, 10);
-    doc.save(`as-bologne-statistiques-${currentSeason.codice.replace("/", "-")}-${filenameDate}.pdf`);
+    doc.save(`as-bologne-statistiques-${exportSeason.codice.replace("/", "-")}-${filenameDate}.pdf`);
   } catch (error) {
     console.error(error);
     alert("Impossible de créer le PDF pour le moment.");
