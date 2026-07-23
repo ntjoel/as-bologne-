@@ -3,14 +3,18 @@
 Sito web della squadra A.S. Bologne per calendario, disponibilita, presenze,
 statistiche, rosa, staff e galleria fotografica.
 
+La stagione sportiva va dal 1 settembre al 31 agosto. Dal primo accesso dopo
+il 1 settembre il sito crea automaticamente la nuova stagione, mostra i
+conteggi correnti a zero e conserva le statistiche precedenti nell'archivio.
+
 - Produzione: <https://project-zxasn.vercel.app>
 - Hosting frontend: Vercel
-- Database, autenticazione futura e file: Supabase
+- Database, autenticazione e file: Supabase
 - Frontend: HTML, CSS e JavaScript senza processo di build
 
 ## Stato importante
 
-Stato della revisione del 17 luglio 2026:
+Stato della revisione del 23 luglio 2026:
 
 - il frontend nel repository usa Supabase Auth e verifica il ruolo tramite
   `is_admin()`; la vecchia password amministrativa incorporata nel JavaScript
@@ -83,6 +87,7 @@ index.html                     Pagina pubblica
 app.js                         Logica del sito pubblico
 admin.html                     Pannello amministrativo
 admin.js                       Logica amministrativa
+season.mjs                     Calcolo e caricamento delle stagioni
 style.css                      Stili condivisi
 vercel.json                    Routing Vercel
 supabase_setup.sql             Schema iniziale storico
@@ -94,9 +99,12 @@ aggiungi_impostazioni.sql      Migrazione impostazioni/logo
                                Staff in disponibilita e telefono opzionale
 20260630_notifiche_whatsapp_automatiche.sql
                                Log degli invii WhatsApp automatici
+20260723_stagioni_archivio_automatico.sql
+                               Stagioni settembre/agosto e archivio automatico
 autorizza_admin.sql            Autorizza l'account tecnico nel pannello
 popola_dati.sql                Dati dimostrativi, non usare in produzione
 supabase/functions/            Edge Functions Supabase
+tests/                         Test automatici del calcolo stagione
 docs/                          Documentazione operativa e tecnica
 ```
 

@@ -1,6 +1,6 @@
 # Guida di manutenzione
 
-Documento aggiornato il 17 luglio 2026.
+Documento aggiornato il 23 luglio 2026.
 
 ## Responsabilita
 
@@ -76,7 +76,7 @@ creare duplicati.
 - creazione, modifica ed eliminazione provate;
 - comportamento verificato a 390 px e desktop;
 - immagini ottimizzate;
-- testo e stagione aggiornati;
+- etichetta della stagione automatica verificata;
 - privacy e autorizzazioni rispettate.
 
 ## Backup Supabase
@@ -122,6 +122,7 @@ aggiungi_impostazioni.sql
 20260614_disponibilita_whatsapp.sql
 20260630_disponibilita_staff_telefono_opzionale.sql
 20260630_notifiche_whatsapp_automatiche.sql
+20260723_stagioni_archivio_automatico.sql
 ```
 
 I primi tre file documentano lo schema storico. La migrazione del 30 giugno su
@@ -289,19 +290,37 @@ Ogni mese:
 - controllare che solo gli admin possano caricare o eliminare;
 - verificare consenso e diritto alla rimozione delle fotografie.
 
-## Cambio stagione
+## Cambio stagione automatico
 
-La stagione e scritta direttamente in `index.html`. Prima della nuova stagione:
+Dopo l'applicazione di `20260723_stagioni_archivio_automatico.sql`, la stagione
+va dal 1 settembre al 31 agosto e non richiede un azzeramento manuale.
 
-1. eseguire backup completo;
-2. decidere se mantenere consultabile lo storico;
-3. aggiungere una vera entita `stagioni` prima di cancellare dati;
-4. associare partite e statistiche alla stagione;
-5. aggiornare il testo in testata;
-6. archiviare o disattivare giocatori usciti;
-7. testare percentuali e classifiche su una stagione vuota.
+Al primo accesso dal 1 settembre:
 
-Non cancellare lo storico per riutilizzare le stesse tabelle.
+1. `assicura_stagione_corrente()` crea la nuova riga in `stagioni`, se manca;
+2. il titolo del sito mostra il nuovo codice, per esempio `2026/2027`;
+3. calendario, contatori, disponibilita e PDF amministrativo vengono filtrati
+   sulla nuova stagione;
+4. non essendoci ancora partite giocate, le statistiche correnti risultano a
+   zero;
+5. le partite e statistiche precedenti restano nell'archivio pubblico.
+
+Il processo e idempotente: piu accessi non creano duplicati. Se nessuno apre il
+sito il 1 settembre, la creazione avviene al primo accesso successivo.
+
+### Controllo annuale consigliato
+
+Tra il 1 e il 7 settembre verificare:
+
+- titolo con la nuova stagione;
+- contatori correnti a zero;
+- stagione precedente presente nel selettore `Stats`;
+- nuova partita associata alla stagione corretta;
+- PDF amministrativo con il nuovo codice stagione;
+- giocatori usciti disattivati e ancora presenti nell'archivio.
+
+Non eliminare manualmente partite, statistiche o giocatori con storico per
+azzerare i conteggi.
 
 ## Controlli periodici
 

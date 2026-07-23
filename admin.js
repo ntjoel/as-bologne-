@@ -1,4 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  applySeasonLabel,
+  ensureCurrentSeason,
+  seasonForDate
+} from "./season.mjs";
 
 const SUPABASE_URL = "https://uiypmfkfwcvdujkvsjxp.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpeXBtZmtmd2N2ZHVqa3ZzanhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTE2MTAsImV4cCI6MjA5NjgyNzYxMH0.iPvSXzsXPQRJdXURELrjjWOoi68MV7w9yONbt17VXew";
@@ -6,13 +11,22 @@ const ADMIN_LOGIN_EMAIL = "j.ntiegoun@gmail.com";
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 let whatsappPlayers = [];
 let currentWhatsAppMatchId = null;
+let currentSeason = seasonForDate();
 
 document.addEventListener("DOMContentLoaded", async () => {
   applyStoredLogo();
   applyMatchPhotoBackground();
+  currentSeason = await ensureCurrentSeason(supabase);
+  applySeasonLabel(currentSeason);
   const { data } = await supabase.auth.getSession();
   if (data.session) await showPanel();
 });
+
+function currentSeasonQuery(query) {
+  return query
+    .gte("data", currentSeason.data_inizio)
+    .lte("data", currentSeason.data_fine);
+}
 
 // Carica il logo salvato e lo applica alla topbar / login
 async function applyStoredLogo() {
@@ -105,17 +119,34 @@ async function showPanel() {
 
 // ---- LOAD ALL ----
 async function loadAllData() {
-  const [{ count: mc }, { count: dc }, { count: gc }] = await Promise.all([
-    supabase.from("matches").select("*", { count: "exact", head: true }),
-    supabase.from("disponibilita").select("*", { count: "exact", head: true }),
-    supabase.from("giocatori").select("*", { count: "exact", head: true }).eq("tipo", "giocatore").eq("attivo", true),
-  ]);
-  document.getElementById("adm-matches").textContent = mc || 0;
-  document.getElementById("adm-risposte").textContent = dc || 0;
-  document.getElementById("adm-giocatori").textContent = gc || 0;
+  await refreshAdminMetrics();
   await loadAdminMatches();
   await loadPlayerList();
   await loadFotoAdmin();
+}
+
+async function refreshAdminMetrics() {
+  const [
+    { data: matches },
+    { count: playersCount }
+  ] = await Promise.all([
+    currentSeasonQuery(supabase.from("matches").select("id")),
+    supabase.from("giocatori").select("*", { count: "exact", head: true }).eq("tipo", "giocatore").eq("attivo", true)
+  ]);
+
+  const matchIds = (matches || []).map(match => match.id);
+  let responsesCount = 0;
+  if (matchIds.length) {
+    const { count } = await supabase
+      .from("disponibilita")
+      .select("*", { count: "exact", head: true })
+      .in("match_id", matchIds);
+    responsesCount = count || 0;
+  }
+
+  document.getElementById("adm-matches").textContent = matchIds.length;
+  document.getElementById("adm-risposte").textContent = responsesCount;
+  document.getElementById("adm-giocatori").textContent = playersCount || 0;
 }
 
 // ---- TAB ADMIN ----
@@ -198,7 +229,9 @@ window.setDefaultDeadline = function () {
 };
 
 async function loadAdminMatches() {
-  const { data } = await supabase.from("matches").select("*").order("data", { ascending: false });
+  const { data } = await currentSeasonQuery(
+    supabase.from("matches").select("*")
+  ).order("data", { ascending: false });
   const el = document.getElementById("admin-match-list");
   const sel = document.getElementById("res-match");
   if (!data || !data.length) {
@@ -306,8 +339,7 @@ window.deleteMatch = async function (id, avv) {
   const { error } = await supabase.from("matches").delete().eq("id", id);
   if (error) { alert("Erreur: " + error.message); return; }
   await loadAdminMatches();
-  const { count } = await supabase.from("matches").select("*", { count: "exact", head: true });
-  document.getElementById("adm-matches").textContent = count || 0;
+  await refreshAdminMetrics();
 };
 
 window.addMatch = async function () {
@@ -341,8 +373,7 @@ window.addMatch = async function () {
   document.getElementById("new-scadenza").value = '';
   showMsg('match-success');
   await loadAdminMatches();
-  const { count } = await supabase.from("matches").select("*", { count: "exact", head: true });
-  document.getElementById("adm-matches").textContent = count || 0;
+  await refreshAdminMetrics();
   await showWhatsAppPanel(created.id);
   if (document.getElementById("new-whatsapp-auto")?.checked) {
     await window.sendWhatsAppAutomatic(created.id);
@@ -542,7 +573,9 @@ window.saveResult = async function () {
 
 // ---- PRESENZE ----
 async function loadMatchSelectPresenze() {
-  const { data } = await supabase.from("matches").select("*").order("data", { ascending: false });
+  const { data } = await currentSeasonQuery(
+    supabase.from("matches").select("*")
+  ).order("data", { ascending: false });
   const sel = document.getElementById("pres-match-select");
   if (!data || !data.length) {
     sel.innerHTML = '<option value="">-- Nessuna partita --</option>';
@@ -792,12 +825,14 @@ window.downloadPlayersStatsPdf = async function () {
     }
 
     const [
-      { data: players, error: playersError },
+      { data: allPlayers, error: playersError },
       { data: matches, error: matchesError },
       { data: stats, error: statsError }
     ] = await Promise.all([
-      supabase.from("giocatori").select("*").eq("attivo", true).eq("tipo", "giocatore").order("nome"),
-      supabase.from("matches").select("id, avversario, data, stato, risultato, orario, campo").eq("stato", "passata").order("data"),
+      supabase.from("giocatori").select("*").eq("tipo", "giocatore").order("nome"),
+      currentSeasonQuery(
+        supabase.from("matches").select("id, avversario, data, stato, risultato, orario, campo")
+      ).eq("stato", "passata").order("data"),
       supabase.from("statistiche").select("*")
     ]);
 
@@ -806,13 +841,20 @@ window.downloadPlayersStatsPdf = async function () {
       return;
     }
 
-    if (!players?.length || !matches?.length) {
+    if (!allPlayers?.length || !matches?.length) {
       alert("Aucune statistique à télécharger pour le moment.");
       return;
     }
 
     const statMap = {};
     (stats || []).forEach(s => { statMap[`${s.giocatore_id}_${s.match_id}`] = s; });
+    const matchIds = new Set(matches.map(match => match.id));
+    const playersWithStats = new Set(
+      (stats || [])
+        .filter(stat => matchIds.has(stat.match_id))
+        .map(stat => stat.giocatore_id)
+    );
+    const players = allPlayers.filter(player => player.attivo || playersWithStats.has(player.id));
     const eventGroups = groupPdfMatchesByEvent(matches);
 
     const doc = new PdfConstructor({ unit: 'mm', format: 'a4' });
@@ -860,10 +902,10 @@ window.downloadPlayersStatsPdf = async function () {
     doc.setTextColor(255, 255, 255);
     doc.text('A.S. Bologne', margin, 11);
     doc.setFontSize(10);
-    doc.text('Statistiques completes des joueurs', margin, 19);
+    doc.text(`Statistiques joueurs - Saison ${currentSeason.codice}`, margin, 19);
 
     const exportDate = new Date().toLocaleDateString('fr-FR');
-    writeLine(`Export admin du ${exportDate} | Joueurs: ${players.length} | Evenements: ${eventGroups.length} | Matches joues: ${matches.length}`, {
+    writeLine(`Saison ${currentSeason.codice} | Export admin du ${exportDate} | Joueurs: ${players.length} | Evenements: ${eventGroups.length} | Matches joues: ${matches.length}`, {
       size: 9,
       color: [98, 107, 128],
       after: 3
@@ -941,7 +983,7 @@ window.downloadPlayersStatsPdf = async function () {
     });
 
     const filenameDate = new Date().toISOString().slice(0, 10);
-    doc.save(`as-bologne-statistiques-joueurs-${filenameDate}.pdf`);
+    doc.save(`as-bologne-statistiques-${currentSeason.codice.replace("/", "-")}-${filenameDate}.pdf`);
   } catch (error) {
     console.error(error);
     alert("Impossible de créer le PDF pour le moment.");
@@ -1180,15 +1222,30 @@ window.savePlayer = async function (id) {
   await loadPlayerList();
 };
 
-// Elimina un giocatore. Se ha statistiche, le rimuove prima, poi elimina del tutto.
+// Conserva lo storico: chi ha statistiche viene disattivato, non cancellato.
 window.deletePlayer = async function (id, nome) {
   if (!confirm(`Supprimer ${nome} ?`)) return;
-  // Rimuovi prima le statistiche/presenze collegate (per evitare errori di vincolo)
-  await supabase.from("statistiche").delete().eq("giocatore_id", id);
-  const { error } = await supabase.from("giocatori").delete().eq("id", id);
+
+  const { count: statsCount, error: statsError } = await supabase
+    .from("statistiche")
+    .select("*", { count: "exact", head: true })
+    .eq("giocatore_id", id);
+
+  if (statsError) {
+    alert("Impossible de verifier l'historique de cette personne.");
+    return;
+  }
+
+  let error;
+  if ((statsCount || 0) > 0) {
+    ({ error } = await supabase.from("giocatori").update({ attivo: false }).eq("id", id));
+  } else {
+    ({ error } = await supabase.from("giocatori").delete().eq("id", id));
+  }
+
   if (error) {
-    // Se l'eliminazione totale fallisce, ripiega su disattivazione
-    await supabase.from("giocatori").update({ attivo: false }).eq("id", id);
+    alert("Impossible de supprimer cette personne: " + error.message);
+    return;
   }
   // Aggiorna la vista attiva
   if (document.getElementById("presenze-table-wrap").innerHTML.trim()) await loadPresenze();
@@ -1284,7 +1341,9 @@ window.addPlayer = async function () {
 
 // ---- FOTO ----
 async function loadFotoMatchSelect() {
-  const { data } = await supabase.from("matches").select("*").order("data", { ascending: false });
+  const { data } = await currentSeasonQuery(
+    supabase.from("matches").select("*")
+  ).order("data", { ascending: false });
   const sel = document.getElementById("foto-match-select");
   sel.innerHTML = '<option value="">-- Seleziona match --</option>' + (data || []).map(m => {
     const dt = new Date(m.data + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
